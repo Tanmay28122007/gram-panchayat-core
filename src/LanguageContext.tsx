@@ -65,7 +65,11 @@ export const translations = {
     mandiSub: "Live crop prices from Agmarknet",
     market: "Market",
     commodity: "Commodity",
+    variety: "Variety",
     price: "Price",
+    minPrice: "Min Price",
+    maxPrice: "Max Price",
+    modalPrice: "Modal Price",
     perQuintal: "Per Quintal (100kg)",
     perMann: "Per Mann (20kg)",
     lastUpdated: "Last Updated"
@@ -132,7 +136,11 @@ export const translations = {
     mandiSub: "એગમાર્કનેટ પરથી લાઈવ પાકના ભાવ",
     market: "બજાર",
     commodity: "પાક",
+    variety: "વિવિધતા",
     price: "ભાવ",
+    minPrice: "લઘુત્તમ ભાવ",
+    maxPrice: "મહત્તમ ભાવ",
+    modalPrice: "મોડલ ભાવ",
     perQuintal: "પ્રતિ ક્વિન્ટલ (100kg)",
     perMann: "પ્રતિ મણ (20kg)",
     lastUpdated: "છેલ્લે અપડેટ"

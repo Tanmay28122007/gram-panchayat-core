@@ -7,6 +7,8 @@ interface CropPrice {
   market: string;
   commodity: string;
   variety: string;
+  min_price: number;
+  max_price: number;
   modal_price: number;
   date: string;
 }
@@ -115,10 +117,12 @@ export function CropPrices() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#FDFBF7] text-[#8B8B7A] text-xs uppercase tracking-wider">
-              <th className="p-4 font-bold border-b border-[#E6E1D3]">{t.market}</th>
-              <th className="p-4 font-bold border-b border-[#E6E1D3]">{t.commodity}</th>
-              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right">{t.price} {isPerQuintal ? '(₹/Q)' : '(₹/20kg)'}</th>
-              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right">{t.lastUpdated}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] whitespace-nowrap">{t.market}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] whitespace-nowrap">{t.commodity}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right whitespace-nowrap">{t.minPrice}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right whitespace-nowrap">{t.maxPrice}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right whitespace-nowrap">{t.modalPrice} {isPerQuintal ? '(₹/Q)' : '(₹/20kg)'}</th>
+              <th className="p-4 font-bold border-b border-[#E6E1D3] text-right whitespace-nowrap">{t.lastUpdated}</th>
             </tr>
           </thead>
           <tbody>
@@ -128,12 +132,16 @@ export function CropPrices() {
                   <td className="p-4"><div className="h-4 bg-[#E6E1D3] rounded w-20"></div></td>
                   <td className="p-4"><div className="h-4 bg-[#E6E1D3] rounded w-24"></div></td>
                   <td className="p-4 text-right"><div className="h-4 bg-[#E6E1D3] rounded w-16 ml-auto"></div></td>
+                  <td className="p-4 text-right"><div className="h-4 bg-[#E6E1D3] rounded w-16 ml-auto"></div></td>
+                  <td className="p-4 text-right"><div className="h-4 bg-[#E6E1D3] rounded w-16 ml-auto"></div></td>
                   <td className="p-4 text-right"><div className="h-4 bg-[#E6E1D3] rounded w-24 ml-auto"></div></td>
                 </tr>
               ))
             ) : (
               prices.map((item, idx) => {
-                const finalPrice = isPerQuintal ? item.modal_price : item.modal_price / 5;
+                const minPrice = isPerQuintal ? item.min_price : item.min_price / 5;
+                const maxPrice = isPerQuintal ? item.max_price : item.max_price / 5;
+                const modalPrice = isPerQuintal ? item.modal_price : item.modal_price / 5;
                 
                 return (
                   <motion.tr 
@@ -151,13 +159,23 @@ export function CropPrices() {
                       <div className="text-xs text-[#8B8B7A]">{item.variety}</div>
                     </td>
                     <td className="p-4 text-right">
+                      <div className="font-mono text-sm font-medium text-[#8B8B7A]">
+                        {formatCurrency(minPrice)}
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="font-mono text-sm font-medium text-[#8B8B7A]">
+                        {formatCurrency(maxPrice)}
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
                       <div className="font-mono text-lg font-bold text-[#52796F] flex items-center justify-end gap-1.5">
-                        {formatCurrency(finalPrice)}
+                        {formatCurrency(modalPrice)}
                         <TrendingUp className="w-4 h-4 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </td>
                     <td className="p-4 text-right">
-                      <div className="text-xs font-medium text-[#8B8B7A] bg-[#F4F1EA] px-2.5 py-1 rounded-full inline-block">
+                      <div className="text-xs font-medium text-[#8B8B7A] bg-[#F4F1EA] px-2.5 py-1 rounded-full inline-block whitespace-nowrap">
                         {item.date}
                       </div>
                     </td>

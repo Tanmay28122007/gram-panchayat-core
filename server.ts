@@ -119,8 +119,8 @@ let weatherCache: {
 
 async function fetchWeather() {
   const now = Date.now();
-  // 1 hour cache
-  if (weatherCache.lastFetch > 0 && now - weatherCache.lastFetch < 60 * 60 * 1000) {
+  // 30 minute cache
+  if (weatherCache.lastFetch > 0 && now - weatherCache.lastFetch < 30 * 60 * 1000) {
     return weatherCache.data;
   }
 
@@ -285,6 +285,8 @@ async function startServer() {
         market: "Gondal",
         commodity: "Cotton",
         variety: "Shankar-6",
+        min_price: 7000,
+        max_price: 7500,
         modal_price: 7250,
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       },
@@ -292,6 +294,8 @@ async function startServer() {
         market: "Rajkot",
         commodity: "Groundnut",
         variety: "G-20",
+        min_price: 6600,
+        max_price: 7000,
         modal_price: 6800,
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       },
@@ -299,6 +303,8 @@ async function startServer() {
         market: "Unjha",
         commodity: "Jeera (Cumin)",
         variety: "Machine Clean",
+        min_price: 24000,
+        max_price: 25000,
         modal_price: 24500,
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       },
@@ -306,6 +312,8 @@ async function startServer() {
         market: "Amreli",
         commodity: "Wheat",
         variety: "Lokwan",
+        min_price: 2400,
+        max_price: 2500,
         modal_price: 2450,
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
       }
