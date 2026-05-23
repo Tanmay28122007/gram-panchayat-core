@@ -4,24 +4,27 @@ import { mockIssues, mockLedger } from './data';
 import { CitizenPortal } from './components/CitizenPortal';
 import { SarpanchDashboard } from './components/SarpanchDashboard';
 import { FinanceLedger } from './components/FinanceLedger';
-import { LayoutDashboard, Users, PieChart, Globe } from 'lucide-react';
+import { SarpanchLogin } from './components/SarpanchLogin';
+import { SeasonPanel } from './components/SeasonPanel';
+import { LayoutDashboard, Users, PieChart, Globe, CloudSun } from 'lucide-react';
 import { cn } from './lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LanguageProvider, useLanguage } from './LanguageContext';
 
 function MainApp() {
   const { t, lang, setLang } = useLanguage();
-  const [currentView, setCurrentView] = useState<ViewState>('citizen');
+  const [currentView, setCurrentView] = useState<ViewState | 'season'>('citizen');
   const [issues, setIssues] = useState(mockIssues);
   const [ledger, setLedger] = useState(mockLedger);
+  const [isSarpanchAuthenticated, setIsSarpanchAuthenticated] = useState(false);
 
-  const handleReportIssue = (category: IssueCategory) => {
+  const handleReportIssue = (category: IssueCategory, description?: string) => {
     // Just mock an issue addition
     const newIssue = {
       id: `TKT-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
       title: `New ${category} issue reported`,
       category,
-      description: 'Automatically added from Citizen Portal QR scan placeholder.',
+      description: description || 'Automatically added from Citizen Portal QR scan placeholder.',
       location: 'GPS Tagged Location',
       reporter: '99999XXXXX',
       upvotes: 0,
@@ -100,6 +103,12 @@ function MainApp() {
                   icon={PieChart}
                   label={t.navFinance}
                 />
+                <NavButton
+                  active={currentView === 'season'}
+                  onClick={() => setCurrentView('season')}
+                  icon={CloudSun}
+                  label={t.navSeason}
+                />
               </div>
             </div>
           </div>
@@ -120,14 +129,21 @@ function MainApp() {
               <CitizenPortal onReportIssue={handleReportIssue} />
             )}
             {currentView === 'sarpanch' && (
-              <SarpanchDashboard
-                issues={issues}
-                onEscalate={handleEscalate}
-                onResolve={handleResolve}
-              />
+              isSarpanchAuthenticated ? (
+                <SarpanchDashboard
+                  issues={issues}
+                  onEscalate={handleEscalate}
+                  onResolve={handleResolve}
+                />
+              ) : (
+                <SarpanchLogin onLogin={() => setIsSarpanchAuthenticated(true)} />
+              )
             )}
             {currentView === 'finance' && (
               <FinanceLedger entries={ledger} />
+            )}
+            {currentView === 'season' && (
+              <SeasonPanel />
             )}
           </motion.div>
         </AnimatePresence>

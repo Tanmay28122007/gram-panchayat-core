@@ -25,4 +25,4 @@ export interface FinanceEntry {
   project: string;
 }
 
-export type ViewState = 'citizen' | 'sarpanch' | 'finance' | 'leaderboard';
+export type ViewState = 'citizen' | 'sarpanch' | 'finance' | 'leaderboard' | 'season';

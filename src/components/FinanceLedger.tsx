@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { ArrowDownRight, ArrowUpRight, Wallet } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../LanguageContext';
+import { cn } from '../lib/utils';
 
 interface FinanceLedgerProps {
   entries: FinanceEntry[];
