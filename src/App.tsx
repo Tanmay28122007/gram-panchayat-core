@@ -22,7 +22,7 @@ import {
   Globe,
   CloudSun,
   ArrowLeft,
-  Map
+  Map,
 } from "lucide-react";
 import { cn } from "./lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -97,7 +97,10 @@ function RouterApp() {
                   element={<CitizenPortal onReportIssue={handleReportIssue} />}
                 />
                 <Route path="season" element={<SeasonPanel />} />
-                <Route path="projects" element={<ProjectMonitoring role="citizen" />} />
+                <Route
+                  path="projects"
+                  element={<ProjectMonitoring role="citizen" />}
+                />
               </Routes>
             </CitizenAppLayout>
           }
@@ -135,10 +138,7 @@ function RouterApp() {
                       />
                     }
                   />
-                  <Route
-                    path="finance"
-                    element={<FinanceLedger />}
-                  />
+                  <Route path="finance" element={<FinanceLedger />} />
                   <Route
                     path="projects"
                     element={<ProjectMonitoring role="sarpanch" />}
@@ -165,11 +165,23 @@ export default function App() {
 
 // Layout components
 
+function GlobalFooter() {
+  return (
+    <footer className="w-full bg-[#2C2C1E] py-4 mt-auto">
+      <div className="max-w-6xl mx-auto px-4 text-center">
+        <p className="text-sm font-medium tracking-wide text-white">
+          2024 &copy; Tanmay Anand - STME
+        </p>
+      </div>
+    </footer>
+  );
+}
+
 function CitizenAppLayout({ children }: { children: React.ReactNode }) {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#3D3D3D] font-sans selection:bg-[#A3B18A]/30">
+    <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#3D3D3D] font-sans selection:bg-[#A3B18A]/30">
       <nav className="bg-white/50 backdrop-blur-md border-b border-[#E6E1D3] sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
@@ -220,14 +232,15 @@ function CitizenAppLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => navigate("/citizen-dashboard/projects")}
                   active={window.location.pathname.includes("/projects")}
                   icon={Map}
-                  label={lang === 'en' ? 'Projects' : 'પ્રોજેક્ટ્સ'}
+                  label={lang === "en" ? "Projects" : "પ્રોજેક્ટ્સ"}
                 />
               </div>
             </div>
           </div>
         </div>
       </nav>
-      <main className="py-8">{children}</main>
+      <main className="py-8 flex-1">{children}</main>
+      <GlobalFooter />
     </div>
   );
 }
@@ -236,7 +249,7 @@ function SarpanchAppLayout({ children }: { children: React.ReactNode }) {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-[#F4F1EA] text-[#3D3D3D] font-sans selection:bg-[#8B5A2B]/30">
+    <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-[#3D3D3D] font-sans selection:bg-[#8B5A2B]/30">
       <nav className="bg-white/80 backdrop-blur-md border-b border-[#E6E1D3] sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
@@ -287,14 +300,15 @@ function SarpanchAppLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => navigate("/sarpanch-dashboard/projects")}
                   active={window.location.pathname.includes("/projects")}
                   icon={Map}
-                  label={lang === 'en' ? 'Projects' : 'પ્રોજેક્ટ્સ'}
+                  label={lang === "en" ? "Projects" : "પ્રોજેક્ટ્સ"}
                 />
               </div>
             </div>
           </div>
         </div>
       </nav>
-      <main className="py-8">{children}</main>
+      <main className="py-8 flex-1">{children}</main>
+      <GlobalFooter />
     </div>
   );
 }
