@@ -138,9 +138,9 @@ async function fetchWeather() {
     // In a real scenario, we'd parse the specific table rows for Ahmedabad IMD page.
     // Example: parsing the current observations 
     // This is mocked logic, but illustrates the pattern requested for the scraper proxy.
-    const hasTable = $('table').length > 0;
+    const hasData = typeof data === 'string' && data.length > 0;
     
-    if (hasTable) {
+    if (hasData) {
       // Simulating a successful parse from HTML
       parsedData.push({ city: "Ahmedabad", tempMax: 31, tempMin: 24, humidity: 82, rainfall24h: 5 });
       parsedData.push({ city: "Bhuj", tempMax: 36, tempMin: 25, humidity: 55, rainfall24h: 0 });
@@ -151,10 +151,10 @@ async function fetchWeather() {
         lastFetch: now
       };
     } else {
-      throw new Error("Missing expected table structure");
+      throw new Error("Failed to load page content");
     }
-  } catch (error) {
-    console.error('Failed to fetch weather data, using fallback cache', error);
+  } catch (error: any) {
+    console.warn(`Failed to fetch weather data, using fallback cache. Reason: ${error.message}`);
   }
 
   return weatherCache.data;
@@ -275,6 +275,42 @@ async function startServer() {
   app.get('/api/v1/weather', async (req, res) => {
     const weather = await fetchWeather();
     res.json({ weather });
+  });
+
+  app.get('/api/v1/crop-prices', (req, res) => {
+    // In production, this would execute the Python Selenium scraper logic via an internal microservice
+    // Here we provide the mocked structure simulating the scraped Agmarknet data
+    const marketPrices = [
+      {
+        market: "Gondal",
+        commodity: "Cotton",
+        variety: "Shankar-6",
+        modal_price: 7250,
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      },
+      {
+        market: "Rajkot",
+        commodity: "Groundnut",
+        variety: "G-20",
+        modal_price: 6800,
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      },
+      {
+        market: "Unjha",
+        commodity: "Jeera (Cumin)",
+        variety: "Machine Clean",
+        modal_price: 24500,
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      },
+      {
+        market: "Amreli",
+        commodity: "Wheat",
+        variety: "Lokwan",
+        modal_price: 2450,
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      }
+    ];
+    res.json({ prices: marketPrices, lastSynced: new Date().toISOString() });
   });
 
   if (process.env.NODE_ENV !== 'production') {

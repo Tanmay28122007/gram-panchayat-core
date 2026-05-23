@@ -60,7 +60,15 @@ export const translations = {
     tempMax: "Max Temp",
     tempMin: "Min Temp",
     humidity: "Humidity",
-    rainfall: "24h Rain"
+    rainfall: "24h Rain",
+    mandiPrices: "Mandi Prices",
+    mandiSub: "Live crop prices from Agmarknet",
+    market: "Market",
+    commodity: "Commodity",
+    price: "Price",
+    perQuintal: "Per Quintal (100kg)",
+    perMann: "Per Mann (20kg)",
+    lastUpdated: "Last Updated"
   },
   gu: {
     title: "વોકલ-લોકલ",
@@ -119,7 +127,15 @@ export const translations = {
     tempMax: "મહત્તમ તાપમાન",
     tempMin: "લઘુત્તમ તાપમાન",
     humidity: "ભેજ",
-    rainfall: "24 કલાક વરસાદ"
+    rainfall: "24 કલાક વરસાદ",
+    mandiPrices: "બજાર ભાવ (મંડી)",
+    mandiSub: "એગમાર્કનેટ પરથી લાઈવ પાકના ભાવ",
+    market: "બજાર",
+    commodity: "પાક",
+    price: "ભાવ",
+    perQuintal: "પ્રતિ ક્વિન્ટલ (100kg)",
+    perMann: "પ્રતિ મણ (20kg)",
+    lastUpdated: "છેલ્લે અપડેટ"
   }
 };
 

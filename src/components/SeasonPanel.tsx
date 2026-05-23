@@ -5,6 +5,7 @@ import {
   CloudRain, ThermometerSun, Droplets, Wind, 
   AlertTriangle, Radar, Sprout, Wheat 
 } from 'lucide-react';
+import { CropPrices } from './CropPrices';
 
 interface WeatherData {
   city: string;
@@ -231,6 +232,9 @@ export function SeasonPanel() {
            </div>
         </div>
       </div>
+
+      {/* Market Prices Section */}
+      <CropPrices />
     </div>
   );
 }
