@@ -8,6 +8,7 @@ export interface Issue {
   description: string;
   location: string;
   reporter: string;
+  reporterId?: string;
   upvotes: number;
   status: IssueStatus;
   reportedAt: string; // ISO string
@@ -15,6 +16,7 @@ export interface Issue {
   issueImageUrl?: string;
   proofImageUrl?: string;
   escalated: boolean;
+  escalatedTo?: string;
 }
 
 export interface FinanceEntry {

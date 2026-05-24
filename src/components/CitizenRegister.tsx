@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ShieldCheck, ArrowLeft, ArrowRight } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import { mockUsers } from '../data';
 
 export function CitizenRegister({ onRegister }: { onRegister: (user: any) => void }) {
   const { t } = useLanguage();
@@ -11,42 +12,36 @@ export function CitizenRegister({ onRegister }: { onRegister: (user: any) => voi
   const category = searchParams.get('category');
   
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phoneNumber: '',
-    email: '',
+    identifier: '',
+    password: '',
   });
 
-  const [phoneError, setPhoneError] = useState('');
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '');
-    if (val.length <= 10) {
-      setFormData({ ...formData, phoneNumber: val });
-    }
-    if (val.length > 0 && val.length < 10) {
-      setPhoneError('Phone number must be 10 digits');
-    } else {
-      setPhoneError('');
-    }
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.phoneNumber.length < 10) {
-      setPhoneError('Phone number must be 10 digits');
+    setError('');
+
+    const user = mockUsers.find(
+      (u) => u.email === formData.identifier || u.phoneNumber === formData.identifier
+    );
+
+    if (!user) {
+      setError('User Not Found');
+      return;
+    }
+
+    if (user.password !== formData.password) {
+      setError('Incorrect Password');
       return;
     }
     
     // Auto login
-    onRegister({ ...formData, id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() });
+    onRegister({ ...user });
     
-    // Redirect back
-    if (category) {
-      navigate(`/citizen-dashboard/services?category=${category}`, { replace: true });
-    } else {
-      navigate('/citizen-dashboard/services', { replace: true });
-    }
+    // Redirect track page since they authenticated
+    navigate('/citizen-dashboard/track', { replace: true });
   };
 
   return (
@@ -69,69 +64,60 @@ export function CitizenRegister({ onRegister }: { onRegister: (user: any) => voi
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#52796F]/10 text-[#52796F] mb-6 shadow-sm border border-[#52796F]/20">
             <ShieldCheck className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-serif font-bold text-[#2C2C1E] tracking-tight mb-2">Create Account</h2>
-          <p className="text-[#8B8B7A]">Please register to proceed with your complaint</p>
+          <h2 className="text-3xl font-serif font-bold text-[#2C2C1E] tracking-tight mb-2">Sign In</h2>
+          <p className="text-[#8B8B7A]">Welcome back to the Citizen Portal</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-[32px] border border-[#E6E1D3] shadow-sm space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">First Name</label>
-              <input
-                type="text"
-                required
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">Last Name</label>
-              <input
-                type="text"
-                required
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D]"
-              />
-            </div>
-          </div>
-          
           <div>
-            <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">Phone Number</label>
-            <div className="flex gap-2">
-              <span className="inline-flex items-center px-4 py-3 border border-[#E6E1D3] bg-[#F4F1EA] text-[#8B8B7A] rounded-xl text-sm font-bold">
-                +91
-              </span>
-              <input
-                type="tel"
-                required
-                value={formData.phoneNumber}
-                onChange={handlePhoneChange}
-                className="flex-1 px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D]"
-                placeholder="0000000000"
-              />
-            </div>
-            {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+            <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">Email or Phone Number</label>
+            <input
+              type="text"
+              required
+              value={formData.identifier}
+              onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+              className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D]"
+              placeholder="Enter your email or phone"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">Email Address</label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D]"
-            />
+            <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full px-4 py-3 bg-[#FDFBF7] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-[#3D3D3D] pr-12"
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8B8B7A] hover:text-[#5A5A40] transition-colors flex items-center justify-center"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
+
+          {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 py-2 rounded-lg">{error}</p>}
 
           <button
             type="submit"
             className="w-full bg-[#52796F] text-white py-4 rounded-full font-bold uppercase tracking-widest text-sm hover:bg-[#3d5a52] transition-colors flex items-center justify-center gap-2 shadow-sm"
           >
-            Create Account & Continue <ArrowRight className="w-4 h-4" />
+            Sign In & Continue <ArrowRight className="w-4 h-4" />
           </button>
+          
+          <div className="text-center mt-6">
+            <p className="text-sm text-[#8B8B7A]">
+              Demo Accounts:<br/>
+              Phone: 9876543210 | Pass: password123<br/>
+              Email: sita@example.com | Pass: password123
+            </p>
+          </div>
         </form>
       </motion.div>
     </div>

@@ -7,11 +7,12 @@ import { useLanguage } from '../LanguageContext';
 
 interface SarpanchDashboardProps {
   issues: Issue[];
-  onEscalate: (id: string) => void;
+  onEscalate: (id: string, escalatedTo: string) => void;
   onResolve: (id: string) => void;
+  onReview: (id: string) => void;
 }
 
-export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDashboardProps) {
+export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: SarpanchDashboardProps) {
   const { t } = useLanguage();
   
   const getStatusColor = (status: Issue['status']) => {
@@ -121,13 +122,29 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDas
                   >
                     {t.markResolved}
                   </button>
-                  {!issue.escalated && (
+                  {issue.status === 'green' && (
                     <button 
-                      onClick={() => onEscalate(issue.id)}
-                      className="flex-1 bg-[#F4F1EA] hover:bg-[#E6E1D3] text-[#D46A43] border border-[#E6E1D3] px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-colors cursor-pointer"
+                      onClick={() => onReview(issue.id)}
+                      className="flex-1 bg-[#F4F1EA] hover:bg-[#E6E1D3] text-[#8B5A2B] border border-[#E6E1D3] px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-colors cursor-pointer text-center"
                     >
-                      {t.escalate}
+                      Under Review
                     </button>
+                  )}
+                  {!issue.escalated && (
+                    <div className="flex-1 flex gap-2">
+                       <button 
+                        onClick={() => onEscalate(issue.id, 'Slated to MP')}
+                        className="flex-1 bg-[#F4F1EA] hover:bg-red-50 text-red-600 border border-[#E6E1D3] px-2 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-colors cursor-pointer text-center"
+                      >
+                        To MP
+                      </button>
+                      <button 
+                        onClick={() => onEscalate(issue.id, 'Slated to MLA')}
+                        className="flex-1 bg-[#F4F1EA] hover:bg-red-50 text-red-600 border border-[#E6E1D3] px-2 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-colors cursor-pointer text-center"
+                      >
+                        To MLA
+                      </button>
+                    </div>
                   )}
                 </>
               )}

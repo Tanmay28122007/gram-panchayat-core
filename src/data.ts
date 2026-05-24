@@ -1,5 +1,10 @@
 import { Issue, FinanceEntry } from './types';
 
+export const mockUsers = [
+  { id: 'USR-001', firstName: 'Ramesh', lastName: 'Kumar', email: 'ramesh@example.com', phoneNumber: '9876543210', password: 'password123' },
+  { id: 'USR-002', firstName: 'Sita', lastName: 'Devi', email: 'sita@example.com', phoneNumber: '9123456789', password: 'password123' },
+];
+
 export const mockIssues: Issue[] = [
   {
     id: 'TKT-001',
@@ -7,7 +12,8 @@ export const mockIssues: Issue[] = [
     category: 'water',
     description: 'The main hand pump near the primary school is not working for the last 3 days.',
     location: 'Ward 4, Near School',
-    reporter: '98765XXXXX',
+    reporter: 'Ramesh Kumar',
+    reporterId: 'USR-001',
     upvotes: 12,
     status: 'red',
     reportedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
@@ -19,7 +25,8 @@ export const mockIssues: Issue[] = [
     category: 'electricity',
     description: 'Streetlight pole #12 is not turning on.',
     location: 'Main Chauraha',
-    reporter: '91234XXXXX',
+    reporter: 'Sita Devi',
+    reporterId: 'USR-002',
     upvotes: 4,
     status: 'yellow',
     reportedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago

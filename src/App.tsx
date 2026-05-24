@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -6,10 +6,11 @@ import {
   useNavigate,
   Navigate,
 } from "react-router-dom";
-import { ViewState, IssueCategory } from "./types";
+import { ViewState, IssueCategory, Issue } from "./types";
 import { mockIssues, mockLedger } from "./data";
 import { CitizenPortal } from "./components/CitizenPortal";
 import { CitizenRegister } from "./components/CitizenRegister";
+import { ComplaintTracker } from "./components/ComplaintTracker";
 import { SarpanchDashboard } from "./components/SarpanchDashboard";
 import { FinanceLedger } from "./components/FinanceLedger";
 import { SarpanchLogin } from "./components/SarpanchLogin";
@@ -17,6 +18,7 @@ import { SeasonPanel } from "./components/SeasonPanel";
 import { ProjectMonitoring } from "./components/ProjectMonitoring";
 import { GlobalFooter } from "./components/GlobalFooter";
 import { RoleSelection } from "./components/RoleSelection";
+import { ToastContainer, ToastMessage } from "./components/Toast";
 import {
   LayoutDashboard,
   Users,
@@ -34,11 +36,65 @@ import { LanguageProvider, useLanguage } from "./LanguageContext";
 // Wrap shared state so we don't lose it on navigation
 function RouterApp() {
   const { t, lang, setLang } = useLanguage();
-  const [issues, setIssues] = useState(mockIssues);
+  const [issues, setIssues] = useState<Issue[]>(() => {
+    const stored = localStorage.getItem("app_issues");
+    return stored ? JSON.parse(stored) : mockIssues;
+  });
   const [ledger, setLedger] = useState(mockLedger);
   const [isSarpanchAuthenticated, setIsSarpanchAuthenticated] = useState(false);
   const [citizenUser, setCitizenUser] = useState<any>(null);
   const isCitizenAuthenticated = !!citizenUser;
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (message: string, type: 'success' | 'info' = 'info') => {
+    const id = Math.random().toString();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
+
+  const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
+
+  useEffect(() => {
+    localStorage.setItem("app_issues", JSON.stringify(issues));
+  }, [issues]);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "app_issues" && e.newValue) {
+        setIssues(JSON.parse(e.newValue));
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const prevIssuesRef = React.useRef(issues);
+
+  useEffect(() => {
+    if (citizenUser) {
+      const prevIssues = prevIssuesRef.current;
+      issues.forEach((currentIssue) => {
+        if (currentIssue.reporterId === citizenUser.id) {
+          const prevIssue = prevIssues.find((i) => i.id === currentIssue.id);
+          if (prevIssue) {
+            if (prevIssue.status !== currentIssue.status) {
+              if (currentIssue.status === 'resolved') {
+                addToast(`Your complaint (${currentIssue.title}) has been marked as Resolved.`, 'success');
+              } else if (currentIssue.status === 'yellow') {
+                addToast(`Your complaint (${currentIssue.title}) is now Under Review.`, 'info');
+              }
+            } else if (currentIssue.escalated !== prevIssue.escalated && currentIssue.escalated) {
+              addToast(`Your complaint (${currentIssue.title}) has been escalated to ${currentIssue.escalatedTo}.`, 'info');
+            }
+          }
+        }
+      });
+    }
+    prevIssuesRef.current = issues;
+  }, [issues, citizenUser]);
 
   const handleReportIssue = (category: IssueCategory, description: string, imageUrl?: string) => {
     const newIssue = {
@@ -51,7 +107,8 @@ function RouterApp() {
         description ||
         "Automatically added from Citizen Portal.",
       location: "GPS Tagged Location",
-      reporter: "Anonymous Citizen",
+      reporter: citizenUser ? `${citizenUser.firstName} ${citizenUser.lastName}` : "Anonymous Citizen",
+      reporterId: citizenUser?.id,
       upvotes: 0,
       status: "green" as const,
       reportedAt: new Date().toISOString(),
@@ -62,10 +119,10 @@ function RouterApp() {
     alert(t.alertReported);
   };
 
-  const handleEscalate = (id: string) => {
+  const handleEscalate = (id: string, escalatedTo: string) => {
     setIssues((prev) =>
       prev.map((i) =>
-        i.id === id ? { ...i, escalated: true, status: "red" } : i,
+        i.id === id ? { ...i, escalated: true, escalatedTo, status: "red" } : i,
       ),
     );
   };
@@ -86,9 +143,19 @@ function RouterApp() {
     );
   };
 
+  const handleReview = (id: string) => {
+    setIssues((prev) =>
+      prev.map((i) =>
+        i.id === id ? { ...i, status: "yellow" } : i,
+      ),
+    );
+  };
+
   return (
-    <BrowserRouter>
-      <Routes>
+    <>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={<RoleSelection />} />
 
         {/* Citizen Route */}
@@ -101,12 +168,22 @@ function RouterApp() {
         <Route
           path="/citizen-dashboard/*"
           element={
-            <CitizenAppLayout>
+            <CitizenAppLayout user={citizenUser} onLogout={() => setCitizenUser(null)}>
               <Routes>
                 <Route path="/" element={<Navigate to="services" replace />} />
                 <Route
                   path="services"
                   element={<CitizenPortal onReportIssue={handleReportIssue} isAuthenticated={isCitizenAuthenticated} />}
+                />
+                <Route
+                  path="track"
+                  element={
+                    isCitizenAuthenticated ? (
+                      <ComplaintTracker issues={issues} user={citizenUser} />
+                    ) : (
+                      <Navigate to="/citizen-register" replace />
+                    )
+                  }
                 />
                 <Route path="season" element={<SeasonPanel />} />
                 <Route
@@ -147,6 +224,7 @@ function RouterApp() {
                         issues={issues.map(i => ({ ...i, reporter: 'Anonymous Citizen' }))}
                         onEscalate={handleEscalate}
                         onResolve={handleResolve}
+                        onReview={handleReview}
                       />
                     }
                   />
@@ -164,6 +242,7 @@ function RouterApp() {
         />
       </Routes>
     </BrowserRouter>
+    </>
   );
 }
 
@@ -177,7 +256,7 @@ export default function App() {
 
 // Layout components
 
-function CitizenAppLayout({ children }: { children: React.ReactNode }) {
+function CitizenAppLayout({ children, user, onLogout }: { children: React.ReactNode, user: any, onLogout: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
   return (
@@ -206,6 +285,35 @@ function CitizenAppLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="flex gap-2 sm:gap-4 items-center">
+              {user ? (
+                <div className="flex items-center gap-3 pr-2 border-r border-[#E6E1D3]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-[#E6E1D3] flex items-center justify-center font-bold text-[#5A5A40]">
+                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                    </div>
+                    <span className="text-xs font-bold hidden md:inline-block text-[#5A5A40]">
+                      {user.firstName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onLogout();
+                      navigate("/");
+                    }}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-full"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => navigate("/citizen-register")}
+                  className="px-4 py-1.5 rounded-full bg-[#52796F] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#3d5a52] transition-colors mr-2"
+                >
+                  Login
+                </button>
+              )}
               <button
                 onClick={() => setLang(lang === "en" ? "gu" : "en")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E6E1D3] text-xs font-bold text-[#5A5A40] hover:bg-[#F4F1EA] transition-colors"
@@ -222,6 +330,14 @@ function CitizenAppLayout({ children }: { children: React.ReactNode }) {
                   icon={Users}
                   label={t.navCitizen}
                 />
+                {user && (
+                  <NavButton
+                    onClick={() => navigate("/citizen-dashboard/track")}
+                    active={window.location.pathname.includes("/track")}
+                    icon={LayoutDashboard}
+                    label="Track"
+                  />
+                )}
                 <NavButton
                   onClick={() => navigate("/citizen-dashboard/season")}
                   active={window.location.pathname.includes("/season")}
