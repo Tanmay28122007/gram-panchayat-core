@@ -7,6 +7,7 @@ export interface Issue {
   category: IssueCategory;
   description: string;
   location: string;
+  coordinates?: { lat: number; lng: number };
   reporter: string;
   reporterId?: string;
   upvotes: number;

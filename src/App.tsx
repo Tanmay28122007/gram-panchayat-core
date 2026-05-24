@@ -19,6 +19,7 @@ import { ProjectMonitoring } from "./components/ProjectMonitoring";
 import { GlobalFooter } from "./components/GlobalFooter";
 import { RoleSelection } from "./components/RoleSelection";
 import { ToastContainer, ToastMessage } from "./components/Toast";
+import axios from "axios";
 import {
   LayoutDashboard,
   Users,
@@ -29,6 +30,7 @@ import {
   Map,
   LogOut,
 } from "lucide-react";
+
 import { cn } from "./lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { LanguageProvider, useLanguage } from "./LanguageContext";
@@ -43,9 +45,28 @@ function RouterApp() {
   const [ledger, setLedger] = useState(mockLedger);
   const [isSarpanchAuthenticated, setIsSarpanchAuthenticated] = useState(false);
   const [citizenUser, setCitizenUser] = useState<any>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const isCitizenAuthenticated = !!citizenUser;
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        try {
+          const { data } = await axios.get("/api/auth/me", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (data.user) setCitizenUser(data.user);
+        } catch (e) {
+          localStorage.removeItem("authToken");
+        }
+      }
+      setIsAuthLoading(false);
+    };
+    checkAuth();
+  }, []);
 
   const addToast = (message: string, type: 'success' | 'info' = 'info') => {
     const id = Math.random().toString();
@@ -96,8 +117,8 @@ function RouterApp() {
     prevIssuesRef.current = issues;
   }, [issues, citizenUser]);
 
-  const handleReportIssue = (category: IssueCategory, description: string, imageUrl?: string) => {
-    const newIssue = {
+  const handleReportIssue = (category: IssueCategory, description: string, imageUrl?: string, coordinates?: {lat: number, lng: number}) => {
+    const newIssue: Issue = {
       id: `TKT-${Math.floor(Math.random() * 1000)
         .toString()
         .padStart(3, "0")}`,
@@ -107,6 +128,7 @@ function RouterApp() {
         description ||
         "Automatically added from Citizen Portal.",
       location: "GPS Tagged Location",
+      coordinates,
       reporter: citizenUser ? `${citizenUser.firstName} ${citizenUser.lastName}` : "Anonymous Citizen",
       reporterId: citizenUser?.id,
       upvotes: 0,
@@ -151,6 +173,14 @@ function RouterApp() {
     );
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
+        <div className="w-8 h-8 rounded-full border-4 border-t-[#52796F] border-[#E6E1D3] animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
@@ -168,7 +198,13 @@ function RouterApp() {
         <Route
           path="/citizen-dashboard/*"
           element={
-            <CitizenAppLayout user={citizenUser} onLogout={() => setCitizenUser(null)}>
+            <CitizenAppLayout 
+              user={citizenUser} 
+              onLogout={() => {
+                setCitizenUser(null);
+                localStorage.removeItem("authToken");
+              }}
+            >
               <Routes>
                 <Route path="/" element={<Navigate to="services" replace />} />
                 <Route
@@ -246,10 +282,20 @@ function RouterApp() {
   );
 }
 
+import { APIProvider } from '@vis.gl/react-google-maps';
+
+const API_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
+
 export default function App() {
   return (
     <LanguageProvider>
-      <RouterApp />
+      <APIProvider apiKey={API_KEY} version="weekly">
+        <RouterApp />
+      </APIProvider>
     </LanguageProvider>
   );
 }

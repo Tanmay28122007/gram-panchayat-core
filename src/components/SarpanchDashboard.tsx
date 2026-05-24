@@ -4,12 +4,37 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, CheckCircle2, Clock, MapPin, ThumbsUp, ArrowUpRight, Users } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../LanguageContext';
+import { Map, AdvancedMarker, Pin, InfoWindow, useAdvancedMarkerRef } from '@vis.gl/react-google-maps';
 
 interface SarpanchDashboardProps {
   issues: Issue[];
   onEscalate: (id: string, escalatedTo: string) => void;
   onResolve: (id: string) => void;
   onReview: (id: string) => void;
+}
+
+function ComplaintMarker({ issue }: { issue: Issue; key?: string | number }) {
+  const [markerRef, marker] = useAdvancedMarkerRef();
+  const [open, setOpen] = React.useState(false);
+
+  if (!issue.coordinates) return null;
+
+  return (
+    <>
+      <AdvancedMarker ref={markerRef} position={issue.coordinates} onClick={() => setOpen(true)}>
+        <Pin background={issue.status === 'red' ? '#EF4444' : issue.status === 'yellow' ? '#EAB308' : '#22C55E'} glyphColor="#fff" borderColor={issue.status === 'red' ? '#B91C1C' : issue.status === 'yellow' ? '#A16207' : '#15803D'} />
+      </AdvancedMarker>
+      {open && (
+        <InfoWindow anchor={marker} onCloseClick={() => setOpen(false)}>
+          <div className="p-2 max-w-[200px] text-left">
+            <p className="font-bold text-[#2C2C1E] text-sm uppercase tracking-wider mb-1">{issue.category}</p>
+            <p className="text-xs text-[#5A5A40] mb-2">{issue.description}</p>
+            <p className="text-[10px] text-[#8B8B7A]">Anonymous Reporter</p>
+          </div>
+        </InfoWindow>
+      )}
+    </>
+  );
 }
 
 export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: SarpanchDashboardProps) {
@@ -60,6 +85,21 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-500"></div>{t.pending}</div>
            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500"></div>{t.new}</div>
         </div>
+      </div>
+
+      <div className="w-full h-64 sm:h-96 bg-white rounded-[24px] border border-[#E6E1D3] overflow-hidden shadow-sm relative">
+        <Map
+          defaultCenter={{lat: 28.6139, lng: 77.2090}} // Defaults to somewhere central if no GPS
+          defaultZoom={12}
+          mapId="SARPANCH_MAP_ID"
+          internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+          style={{width: '100%', height: '100%'}}
+          gestureHandling="cooperative"
+        >
+          {issues.map(issue => (
+            <ComplaintMarker key={`marker-${issue.id}`} issue={issue} />
+          ))}
+        </Map>
       </div>
 
       <div className="grid gap-4">

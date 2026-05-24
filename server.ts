@@ -3,6 +3,23 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import fs from 'fs';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const USERS_FILE = path.join(process.cwd(), 'users.json');
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123';
+
+function loadUsers(): any[] {
+  if (fs.existsSync(USERS_FILE)) {
+    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+  }
+  return [];
+}
+
+function saveUsers(users: any[]) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
 
 interface Scheme {
   title: string;
@@ -252,6 +269,82 @@ async function fetchCategories() {
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  app.use(express.json());
+
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { firstName, lastName, phoneNumber, email, password } = req.body;
+      const users = loadUsers();
+      
+      const existingUser = users.find(u => u.email === email || u.phoneNumber === phoneNumber);
+      if (existingUser) {
+        return res.status(400).json({ error: 'User already exists, please Login' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = {
+        id: `USR-${Date.now()}`,
+        firstName,
+        lastName,
+        phoneNumber,
+        email,
+        password: hashedPassword
+      };
+
+      users.push(newUser);
+      saveUsers(users);
+
+      const token = jwt.sign({ id: newUser.id }, JWT_SECRET, { expiresIn: '7d' });
+      const userResponse = { id: newUser.id, firstName, lastName, email, phoneNumber };
+      
+      res.json({ token, user: userResponse });
+    } catch (e) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { identifier, password } = req.body;
+      const users = loadUsers();
+      
+      const user = users.find(u => u.email === identifier || u.phoneNumber === identifier);
+      if (!user) {
+        return res.status(404).json({ error: 'User Not Found' });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Incorrect Password' });
+      }
+
+      const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
+      const userResponse = { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber };
+      
+      res.json({ token, user: userResponse });
+    } catch (e) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/auth/me', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No token' });
+    
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const users = loadUsers();
+      const user = users.find(u => u.id === decoded.id);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      
+      const userResponse = { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, phoneNumber: user.phoneNumber };
+      res.json({ user: userResponse });
+    } catch (e) {
+      res.status(401).json({ error: 'Invalid token' });
+    }
+  });
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
