@@ -1,7 +1,7 @@
 import React from 'react';
 import { Issue } from '../types';
-import { motion } from 'motion/react';
-import { AlertCircle, CheckCircle2, Clock, MapPin, ThumbsUp, ArrowUpRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { AlertCircle, CheckCircle2, Clock, MapPin, ThumbsUp, ArrowUpRight, Users } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../LanguageContext';
 
@@ -33,16 +33,17 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDas
   };
 
   const sortedIssues = [...issues].sort((a, b) => {
-    // Red -> Yellow -> Green -> Resolved
+    // Red status ALWAYS at the top regardless of timestamp
+    if (a.status === 'red' && b.status !== 'red') return -1;
+    if (b.status === 'red' && a.status !== 'red') return 1;
+
+    // For other statuses, Red -> Yellow -> Green -> Resolved
     const statusWeight = { red: 0, yellow: 1, green: 2, resolved: 3 };
     if (statusWeight[a.status] !== statusWeight[b.status]) {
       return statusWeight[a.status] - statusWeight[b.status];
     }
-    // Then by upvotes desc
-    if (b.upvotes !== a.upvotes) {
-      return b.upvotes - a.upvotes;
-    }
-    // Then by date
+    
+    // Then by date (newest first)
     return new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime();
   });
 
@@ -61,14 +62,17 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDas
       </div>
 
       <div className="grid gap-4">
-        {sortedIssues.map((issue, index) => (
-          <motion.div
-            key={issue.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-white border border-[#E6E1D3] rounded-[24px] p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 md:items-center justify-between"
-          >
+        <AnimatePresence>
+          {sortedIssues.map((issue, index) => (
+            <motion.div
+              layout
+              key={issue.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, delay: index * 0.02 }}
+              className="bg-white border border-[#E6E1D3] rounded-[24px] p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 md:items-center justify-between"
+            >
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-3 flex-wrap">
                 <span className={cn("px-2.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-widest flex items-center gap-1.5", getStatusColor(issue.status))}>
@@ -87,9 +91,15 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDas
               <div>
                 <h3 className="text-lg font-serif font-bold text-[#2C2C1E]">{issue.title}</h3>
                 <p className="text-[#3D3D3D] text-sm mt-1">{issue.description}</p>
+                {issue.issueImageUrl && (
+                  <img src={issue.issueImageUrl} alt="Issue" className="mt-3 w-full max-w-[200px] h-32 rounded-lg object-cover border border-[#E6E1D3]" />
+                )}
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-bold text-[#8B8B7A] flex-wrap uppercase tracking-wider">
+              <div className="flex items-center gap-4 text-xs font-bold text-[#8B8B7A] flex-wrap uppercase tracking-wider mt-2">
+                <div className="flex items-center gap-1.5 text-[#5A5A40]">
+                  <Users className="w-4 h-4" /> {issue.reporter}
+                </div>
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-4 h-4" /> {issue.location}
                 </div>
@@ -133,7 +143,8 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve }: SarpanchDas
               )}
             </div>
           </motion.div>
-        ))}
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

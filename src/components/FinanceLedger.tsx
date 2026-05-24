@@ -11,6 +11,7 @@ interface ExpenseEntry {
   amount: number;
   category: string;
   date: string;
+  isFinalPayment?: boolean;
 }
 
 export function FinanceLedger() {
@@ -25,6 +26,7 @@ export function FinanceLedger() {
   const [newReason, setNewReason] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('Road');
+  const [isFinalPayment, setIsFinalPayment] = useState(false);
 
   // Load from LocalStorage
   useEffect(() => {
@@ -55,12 +57,43 @@ export function FinanceLedger() {
       reason: newReason,
       amount: Number(newAmount),
       category: newCategory,
-      date: new Date().toLocaleDateString(lang === 'gu' ? 'gu-IN' : 'en-IN')
+      date: new Date().toLocaleDateString(lang === 'gu' ? 'gu-IN' : 'en-IN'),
+      isFinalPayment: isFinalPayment
     };
     
     setExpenses([expense, ...expenses]);
+
+    // Auto-sync with Development Projects
+    const savedProjects = localStorage.getItem('village_projects');
+    const projects: any[] = savedProjects ? JSON.parse(savedProjects) : [];
+    const existingProjectIndex = projects.findIndex((p: any) => p.name.toLowerCase() === newReason.trim().toLowerCase());
+    
+    if (existingProjectIndex === -1) {
+      // Create new project if it doesn't exist
+      const newProj = {
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + '-proj',
+        name: newReason.trim(),
+        estimatedCost: Number(newAmount), // Default estimated cost to this first expense
+        category: newCategory,
+        status: isFinalPayment ? 'Completed' : 'Ongoing',
+        createdAt: new Date().toISOString(),
+        ...(isFinalPayment ? { completedAt: new Date().toISOString() } : {})
+      };
+      projects.unshift(newProj);
+    } else {
+      // If it exists, update its status
+      if (isFinalPayment) {
+        projects[existingProjectIndex].status = 'Completed';
+        projects[existingProjectIndex].completedAt = new Date().toISOString();
+      }
+    }
+    
+    localStorage.setItem('village_projects', JSON.stringify(projects));
+    window.dispatchEvent(new Event('storage')); // trigger updates in other tabs/components
+
     setNewReason('');
     setNewAmount('');
+    setIsFinalPayment(false);
   };
 
   const handleDelete = (id: string) => {
@@ -181,6 +214,18 @@ export function FinanceLedger() {
                 <option value="Sanitation">Sanitation</option>
                 <option value="Miscellaneous">Miscellaneous</option>
               </select>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="checkbox"
+                id="finalPayment"
+                checked={isFinalPayment}
+                onChange={(e) => setIsFinalPayment(e.target.checked)}
+                className="w-4 h-4 text-[#52796F] border-[#E6E1D3] rounded focus:ring-[#52796F]"
+              />
+              <label htmlFor="finalPayment" className="text-sm font-medium text-[#3D3D3D]">
+                Mark as Final Payment
+              </label>
             </div>
             <div className="mt-auto pt-4">
               <button

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Droplet, Trash2, Zap, Route, FileText, AlertTriangle, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -8,13 +9,39 @@ import { GovernmentSchemes } from './GovernmentSchemes';
 import { SchemeCategories } from './SchemeCategories';
 
 interface CitizenPortalProps {
-  onReportIssue: (category: IssueCategory, description?: string) => void;
+  onReportIssue: (category: IssueCategory, description: string, imageUrl?: string) => void;
+  isAuthenticated: boolean;
 }
 
-export function CitizenPortal({ onReportIssue }: CitizenPortalProps) {
+export function CitizenPortal({ onReportIssue, isAuthenticated }: CitizenPortalProps) {
   const { t } = useLanguage();
-  const [selectedCat, setSelectedCat] = useState<IssueCategory | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category');
+  
+  const [selectedCat, setSelectedCat] = useState<IssueCategory | null>(
+    (initialCategory as IssueCategory) || null
+  );
   const [reportText, setReportText] = useState('');
+  const [reportImage, setReportImage] = useState<File | null>(null);
+
+  // Clear query param correctly when changing state if desired, or keep it.
+  
+  const handleCategoryClick = (catId: string) => {
+    if (!isAuthenticated) {
+      navigate(`/citizen-register?category=${catId}`);
+      return;
+    }
+    
+    if (selectedCat === catId) {
+      setSelectedCat(null);
+      setReportImage(null);
+      setSearchParams(new URLSearchParams());
+    } else {
+      setSelectedCat(catId as IssueCategory);
+      setSearchParams({ category: catId });
+    }
+  };
 
   const CATEGORIES = [
     { id: 'water', icon: Droplet, label: t.catWater, color: 'bg-[#F4F1EA] text-[#52796F]', border: 'border-[#E6E1D3] hover:border-[#52796F]' },
@@ -28,9 +55,15 @@ export function CitizenPortal({ onReportIssue }: CitizenPortalProps) {
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCat && reportText.trim()) {
-      onReportIssue(selectedCat, reportText.trim());
+      let imageUrl = undefined;
+      if (reportImage) {
+        imageUrl = URL.createObjectURL(reportImage);
+      }
+      onReportIssue(selectedCat, reportText.trim(), imageUrl);
       setReportText('');
+      setReportImage(null);
       setSelectedCat(null);
+      setSearchParams(new URLSearchParams());
     }
   };
 
@@ -58,7 +91,7 @@ export function CitizenPortal({ onReportIssue }: CitizenPortalProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              onClick={() => setSelectedCat(isSelected ? null : cat.id as IssueCategory)}
+              onClick={() => handleCategoryClick(cat.id)}
               className={cn(
                 "flex flex-col items-center justify-center p-6 sm:p-8 rounded-[24px] border transition-all focus:outline-none focus:ring-4 focus:ring-opacity-50 bg-white",
                 isSelected ? `shadow-md border-[2px] ${cat.color.split(' ')[1].replace('text-', 'border-')} ring-2 ring-opacity-20 translate-y-0` : `shadow-sm hover:-translate-y-1 hover:shadow-lg ${cat.border}`,
@@ -98,10 +131,23 @@ export function CitizenPortal({ onReportIssue }: CitizenPortalProps) {
                 placeholder="..."
                 required
               />
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-[#8B8B7A] uppercase tracking-wider">Image Upload (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setReportImage(e.target.files ? e.target.files[0] : null)}
+                  className="w-full text-sm text-[#5A5A40] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#F4F1EA] file:text-[#5A5A40] hover:file:bg-[#E6E1D3] transition-colors"
+                />
+              </div>
               <div className="flex gap-4 justify-end mt-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedCat(null)}
+                  onClick={() => {
+                    setSelectedCat(null);
+                    setReportImage(null);
+                    setSearchParams(new URLSearchParams());
+                  }}
                   className="px-6 py-2 rounded-full font-bold text-[#8B8B7A] hover:bg-[#F4F1EA] transition-colors uppercase tracking-widest text-xs"
                 >
                   {t.cancel}

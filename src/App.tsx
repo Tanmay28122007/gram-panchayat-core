@@ -9,11 +9,13 @@ import {
 import { ViewState, IssueCategory } from "./types";
 import { mockIssues, mockLedger } from "./data";
 import { CitizenPortal } from "./components/CitizenPortal";
+import { CitizenRegister } from "./components/CitizenRegister";
 import { SarpanchDashboard } from "./components/SarpanchDashboard";
 import { FinanceLedger } from "./components/FinanceLedger";
 import { SarpanchLogin } from "./components/SarpanchLogin";
 import { SeasonPanel } from "./components/SeasonPanel";
 import { ProjectMonitoring } from "./components/ProjectMonitoring";
+import { GlobalFooter } from "./components/GlobalFooter";
 import { RoleSelection } from "./components/RoleSelection";
 import {
   LayoutDashboard,
@@ -23,6 +25,7 @@ import {
   CloudSun,
   ArrowLeft,
   Map,
+  LogOut,
 } from "lucide-react";
 import { cn } from "./lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -34,8 +37,10 @@ function RouterApp() {
   const [issues, setIssues] = useState(mockIssues);
   const [ledger, setLedger] = useState(mockLedger);
   const [isSarpanchAuthenticated, setIsSarpanchAuthenticated] = useState(false);
+  const [citizenUser, setCitizenUser] = useState<any>(null);
+  const isCitizenAuthenticated = !!citizenUser;
 
-  const handleReportIssue = (category: IssueCategory, description?: string) => {
+  const handleReportIssue = (category: IssueCategory, description: string, imageUrl?: string) => {
     const newIssue = {
       id: `TKT-${Math.floor(Math.random() * 1000)
         .toString()
@@ -44,13 +49,14 @@ function RouterApp() {
       category,
       description:
         description ||
-        "Automatically added from Citizen Portal QR scan placeholder.",
+        "Automatically added from Citizen Portal.",
       location: "GPS Tagged Location",
-      reporter: "99999XXXXX",
+      reporter: "Anonymous Citizen",
       upvotes: 0,
       status: "green" as const,
       reportedAt: new Date().toISOString(),
       escalated: false,
+      issueImageUrl: imageUrl,
     };
     setIssues((prev) => [newIssue, ...prev]);
     alert(t.alertReported);
@@ -87,6 +93,12 @@ function RouterApp() {
 
         {/* Citizen Route */}
         <Route
+          path="/citizen-register"
+          element={
+            <CitizenRegister onRegister={(user) => setCitizenUser(user)} />
+          }
+        />
+        <Route
           path="/citizen-dashboard/*"
           element={
             <CitizenAppLayout>
@@ -94,7 +106,7 @@ function RouterApp() {
                 <Route path="/" element={<Navigate to="services" replace />} />
                 <Route
                   path="services"
-                  element={<CitizenPortal onReportIssue={handleReportIssue} />}
+                  element={<CitizenPortal onReportIssue={handleReportIssue} isAuthenticated={isCitizenAuthenticated} />}
                 />
                 <Route path="season" element={<SeasonPanel />} />
                 <Route
@@ -122,7 +134,7 @@ function RouterApp() {
           path="/sarpanch-dashboard/*"
           element={
             isSarpanchAuthenticated ? (
-              <SarpanchAppLayout>
+              <SarpanchAppLayout onLogout={() => setIsSarpanchAuthenticated(false)}>
                 <Routes>
                   <Route
                     path="/"
@@ -132,7 +144,7 @@ function RouterApp() {
                     path="overview"
                     element={
                       <SarpanchDashboard
-                        issues={issues}
+                        issues={issues.map(i => ({ ...i, reporter: 'Anonymous Citizen' }))}
                         onEscalate={handleEscalate}
                         onResolve={handleResolve}
                       />
@@ -164,18 +176,6 @@ export default function App() {
 }
 
 // Layout components
-
-function GlobalFooter() {
-  return (
-    <footer className="w-full bg-[#2C2C1E] py-4 mt-auto">
-      <div className="max-w-6xl mx-auto px-4 text-center">
-        <p className="text-sm font-medium tracking-wide text-white">
-          2024 &copy; Tanmay Anand - STME
-        </p>
-      </div>
-    </footer>
-  );
-}
 
 function CitizenAppLayout({ children }: { children: React.ReactNode }) {
   const { t, lang, setLang } = useLanguage();
@@ -245,9 +245,15 @@ function CitizenAppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SarpanchAppLayout({ children }: { children: React.ReactNode }) {
+function SarpanchAppLayout({ children, onLogout }: { children: React.ReactNode, onLogout: () => void }) {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    onLogout();
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-[#3D3D3D] font-sans selection:bg-[#8B5A2B]/30">
       <nav className="bg-white/80 backdrop-blur-md border-b border-[#E6E1D3] sticky top-0 z-50">
@@ -302,6 +308,14 @@ function SarpanchAppLayout({ children }: { children: React.ReactNode }) {
                   icon={Map}
                   label={lang === "en" ? "Projects" : "પ્રોજેક્ટ્સ"}
                 />
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-full border border-red-200 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
               </div>
             </div>
           </div>
@@ -336,13 +350,14 @@ function SarpanchAuthContainer({
           <ArrowLeft className="w-5 h-5" /> Back
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center pb-8 pt-24">
         <SarpanchLogin
           onLogin={() => {
             onLogin();
           }}
         />
       </div>
+      <GlobalFooter />
     </div>
   );
 }

@@ -9,7 +9,7 @@ export interface DevelopmentProject {
   name: string;
   estimatedCost: number;
   category: string;
-  status: 'Ongoing' | 'Completed';
+  status: 'Ongoing' | 'Completed' | 'Postponed';
   createdAt: string;
   completedAt?: string;
 }
@@ -21,6 +21,7 @@ interface ProjectMonitoringProps {
 export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const { lang } = useLanguage();
   const [projects, setProjects] = useState<DevelopmentProject[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   
@@ -29,7 +30,7 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const [newCost, setNewCost] = useState('');
   const [newCategory, setNewCategory] = useState('Road & Infrastructure');
 
-  useEffect(() => {
+  const loadData = () => {
     const savedProjects = localStorage.getItem('village_projects');
     if (savedProjects) {
       setProjects(JSON.parse(savedProjects));
@@ -57,6 +58,17 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
       setProjects(initial);
       localStorage.setItem('village_projects', JSON.stringify(initial));
     }
+
+    const savedExpenses = localStorage.getItem('sarpanch_expenses');
+    if (savedExpenses) {
+      setExpenses(JSON.parse(savedExpenses));
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
   }, []);
 
   useEffect(() => {
@@ -70,6 +82,15 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     const matchesCategory = filterCategory === 'All' || p.category === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const projectExpensesMap = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    expenses.forEach(e => {
+      const key = e.reason.toLowerCase();
+      map[key] = (map[key] || 0) + e.amount;
+    });
+    return map;
+  }, [expenses]);
 
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,9 +110,9 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     setNewCost('');
   };
 
-  const handleMarkComplete = (id: string) => {
+  const handleStatusChange = (id: string, newStatus: DevelopmentProject['status']) => {
     setProjects(projects.map(p => 
-      p.id === id ? { ...p, status: 'Completed', completedAt: new Date().toISOString() } : p
+      p.id === id ? { ...p, status: newStatus, completedAt: newStatus === 'Completed' ? new Date().toISOString() : p.completedAt } : p
     ));
   };
 
@@ -206,95 +227,116 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
               No development projects found in this category.
             </div>
           ) : (
-            filteredProjects.map((project, idx) => (
-              <motion.div
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ 
-                  layout: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 },
-                  y: { duration: 0.2 }
-                }}
-                key={project.id}
-                className={cn(
-                  "relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active",
-                  role === 'citizen' ? "md:odd:flex-row-reverse" : "flex-col md:flex-row" // Citizen has timeline look, Sarpanch has list look
-                )}
-              >
-                {role === 'citizen' && (
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-[#FDFBF7] bg-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">
-                    {project.status === 'Completed' ? (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-blue-500" />
-                    )}
-                  </div>
-                )}
-                
-                <div className={cn(
-                  "bg-white p-6 rounded-[24px] border border-[#E6E1D3] shadow-sm w-full transition-shadow hover:shadow-md",
-                  role === 'citizen' ? "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)]" : "w-full flex flex-col md:flex-row md:items-center justify-between gap-4"
-                )}>
-                  <div className="space-y-3 flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-[#8B8B7A] bg-[#F4F1EA] px-2.5 py-1 rounded-full">
-                        {project.category}
-                      </span>
-                      {role === 'citizen' && (
-                        <span className={cn(
-                          "text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full",
-                          project.status === 'Completed' ? "text-green-700 bg-green-50" : "text-blue-700 bg-blue-50"
-                        )}>
-                          {project.status}
-                        </span>
+            filteredProjects.map((project, idx) => {
+              const spent = projectExpensesMap[project.name.toLowerCase()] || 0;
+              const isOverBudget = spent > project.estimatedCost;
+
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ 
+                    layout: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 },
+                    y: { duration: 0.2 }
+                  }}
+                  key={project.id}
+                  className={cn(
+                    "relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active",
+                    role === 'citizen' ? "md:odd:flex-row-reverse" : "flex-col md:flex-row" // Citizen has timeline look, Sarpanch has list look
+                  )}
+                >
+                  {role === 'citizen' && (
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-[#FDFBF7] bg-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">
+                      {project.status === 'Completed' ? (
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-blue-500" />
                       )}
                     </div>
-                    <div>
-                      <h4 className="text-xl font-serif font-bold text-[#2C2C1E]">{project.name}</h4>
-                      <div className="text-sm text-[#8B8B7A] mt-1 flex items-center gap-2">
-                        <span>Started: {formatDate(project.createdAt)}</span>
-                        {project.completedAt && (
-                          <>
-                            <span>•</span>
-                            <span className="text-green-600">Finished: {formatDate(project.completedAt)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="font-mono font-bold text-[#5A5A40]">
-                      Cost: {formatCurrency(project.estimatedCost)}
-                    </div>
-                  </div>
-
-                  {role === 'sarpanch' && (
-                    <div className="flex items-center gap-3 shrink-0 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-[#E6E1D3] md:pl-6 mt-4 md:mt-0">
-                      <div className="flex flex-col items-end gap-2">
-                        {project.status === 'Ongoing' ? (
-                          <button
-                            onClick={() => handleMarkComplete(project.id)}
-                            className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider rounded-full transition-colors flex items-center gap-2"
-                          >
-                            <CheckCircle className="w-4 h-4" /> Mark Complete
-                          </button>
-                        ) : (
-                          <span className="px-4 py-2 bg-green-50 text-green-700 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4" /> Completed
+                  )}
+                  
+                  <div className={cn(
+                    "bg-white p-6 rounded-[24px] shadow-sm w-full transition-shadow hover:shadow-md",
+                    isOverBudget ? "border-2 border-red-500" : "border border-[#E6E1D3]",
+                    role === 'citizen' ? "w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)]" : "w-full flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  )}>
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-[#8B8B7A] bg-[#F4F1EA] px-2.5 py-1 rounded-full">
+                            {project.category}
+                          </span>
+                          {isOverBudget && (
+                            <span className="text-[10px] uppercase tracking-widest font-bold text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                              Budget Overrun Warning
+                            </span>
+                          )}
+                        </div>
+                        {role === 'citizen' && (
+                          <span className={cn(
+                            "text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full",
+                            project.status === 'Completed' ? "text-green-700 bg-green-50" : 
+                            project.status === 'Postponed' ? "text-orange-700 bg-orange-50" : 
+                            "text-blue-700 bg-blue-50"
+                          )}>
+                            {project.status}
                           </span>
                         )}
-                        <button
-                          onClick={() => handleDelete(project.id)}
-                          className="px-4 py-2 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wider rounded-full transition-colors flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" /> Delete
-                        </button>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-serif font-bold text-[#2C2C1E]">{project.name}</h4>
+                        <div className="text-sm text-[#8B8B7A] mt-1 flex items-center gap-2">
+                          <span>Started: {formatDate(project.createdAt)}</span>
+                          {project.completedAt && (
+                            <>
+                              <span>•</span>
+                              <span className="text-green-600">Finished: {formatDate(project.completedAt)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-4 mt-2">
+                        <div className="font-mono text-sm">
+                          <span className="text-[#8B8B7A] mr-2">Est. Cost:</span>
+                          <span className="font-bold text-[#5A5A40]">{formatCurrency(project.estimatedCost)}</span>
+                        </div>
+                        {spent > 0 && (
+                          <div className="font-mono text-sm">
+                            <span className="text-[#8B8B7A] mr-2">Spent (Ledger):</span>
+                            <span className="font-bold text-red-600">{formatCurrency(spent)}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))
+
+                    {role === 'sarpanch' && (
+                      <div className="flex items-center gap-3 shrink-0 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-[#E6E1D3] md:pl-6 mt-4 md:mt-0">
+                        <div className="flex flex-col items-end gap-3">
+                          <select
+                            value={project.status}
+                            onChange={(e) => handleStatusChange(project.id, e.target.value as DevelopmentProject['status'])}
+                            className="px-4 py-2 bg-[#F4F1EA] border border-[#E6E1D3] rounded-full text-xs font-bold uppercase tracking-wider text-[#5A5A40] focus:outline-none focus:ring-2 focus:ring-[#52796F]/50 text-center min-w-[120px] cursor-pointer"
+                          >
+                            <option value="Ongoing">Ongoing</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Postponed">Postponed</option>
+                          </select>
+                          <button
+                            onClick={() => handleDelete(project.id)}
+                            className="px-4 py-1.5 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wider rounded-full transition-colors flex items-center gap-2 justify-center w-full"
+                          >
+                            <Trash2 className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
           )}
         </AnimatePresence>
       </div>

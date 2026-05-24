@@ -3,25 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { Users, ShieldCheck, TreePine, Sunrise } from "lucide-react";
 import { useLanguage } from "../LanguageContext";
+import { GlobalFooter } from "./GlobalFooter";
 
 export function RoleSelection() {
   const navigate = useNavigate();
   const { lang, setLang } = useLanguage();
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex flex-col pt-8 pb-12 px-4 sm:px-6 sm:pt-16 sm:pb-24">
-      {/* Header & Language Toggle */}
-      <div className="max-w-5xl mx-auto w-full flex justify-end mb-8">
-        <button
-          onClick={() => setLang(lang === "en" ? "gu" : "en")}
-          className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E6E1D3] text-sm font-bold text-[#5A5A40] hover:bg-[#F4F1EA] transition-colors bg-white shadow-sm"
-          title="Change Language"
-        >
-          {lang === "en" ? "ગુજરાતી" : "English"}
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col">
+      <div className="flex-1 flex flex-col pt-8 pb-12 px-4 sm:px-6 sm:pt-16 sm:pb-24">
+        {/* Header & Language Toggle */}
+        <div className="max-w-5xl mx-auto w-full flex justify-end mb-8">
+          <button
+            onClick={() => setLang(lang === "en" ? "gu" : "en")}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#E6E1D3] text-sm font-bold text-[#5A5A40] hover:bg-[#F4F1EA] transition-colors bg-white shadow-sm"
+            title="Change Language"
+          >
+            {lang === "en" ? "ગુજરાતી" : "English"}
+          </button>
+        </div>
 
-      <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center">
         <div className="max-w-5xl w-full mx-auto space-y-16">
           <div className="text-center space-y-6">
             <motion.div
@@ -107,12 +109,14 @@ export function RoleSelection() {
       </div>
 
       {/* Footer decoration */}
-      <div className="mt-16 text-center opacity-50 flex flex-col items-center justify-center gap-2">
+      <div className="mt-16 mb-8 text-center opacity-50 flex flex-col items-center justify-center gap-2">
         <Sunrise className="w-6 h-6 text-[#A3B18A]" />
         <span className="text-xs font-bold uppercase tracking-widest text-[#5A5A40]">
           Digital Gram Panchayat
         </span>
       </div>
+      </div>
+      <GlobalFooter />
     </div>
   );
 }

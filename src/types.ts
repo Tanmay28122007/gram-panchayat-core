@@ -12,6 +12,7 @@ export interface Issue {
   status: IssueStatus;
   reportedAt: string; // ISO string
   resolvedAt?: string;
+  issueImageUrl?: string;
   proofImageUrl?: string;
   escalated: boolean;
 }
