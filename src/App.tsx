@@ -259,7 +259,7 @@ function RouterApp() {
                     path="overview"
                     element={
                       <SarpanchDashboard
-                        issues={issues.map(i => ({ ...i, reporter: 'Anonymous Citizen' }))}
+                        issues={issues.map(i => ({ ...i, reporter: 'Anonymous', reporterId: undefined }))}
                         onEscalate={handleEscalate}
                         onResolve={handleResolve}
                         onReview={handleReview}

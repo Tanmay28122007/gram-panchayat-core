@@ -16,6 +16,25 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
   const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
   
+  const prevIssuesRef = React.useRef(issues);
+  const [highlightedId, setHighlightedId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (issues.length > prevIssuesRef.current.length) {
+      const prevIds = new Set(prevIssuesRef.current.map(i => i.id));
+      const newIssue = issues.find(i => !prevIds.has(i.id));
+      
+      if (newIssue) {
+        setHighlightedId(newIssue.id);
+        const timer = setTimeout(() => setHighlightedId(null), 3000);
+        
+        // Also fire a Toast or small visual cue can be omitted if highlight is enough,
+        // but we can play a small animation by setting highlightedId
+      }
+    }
+    prevIssuesRef.current = issues;
+  }, [issues]);
+
   const getStatusColor = (status: Issue['status']) => {
     switch (status) {
       case 'green': return 'bg-[#F0FDF4] text-green-900 border-green-200';
@@ -73,7 +92,10 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3, delay: index * 0.02 }}
-              className="bg-white border border-[#E6E1D3] rounded-[24px] p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 md:items-center justify-between"
+              className={cn(
+                "border rounded-[24px] p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-500 flex flex-col md:flex-row gap-6 md:items-center justify-between",
+                highlightedId === issue.id ? "bg-green-50 border-green-400 ring-2 ring-green-400 ring-opacity-50" : "bg-white border-[#E6E1D3]"
+              )}
             >
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-3 flex-wrap">
