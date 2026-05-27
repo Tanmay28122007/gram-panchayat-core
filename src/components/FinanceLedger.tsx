@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, Wallet, Plus, Trash2, Search, AlertCircle } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Wallet, Plus, Trash2, Search, AlertCircle, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../LanguageContext';
 import { cn } from '../lib/utils';
@@ -22,25 +22,40 @@ export function FinanceLedger() {
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Fund Update Modal State
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [fundInputValue, setFundInputValue] = useState('');
+  
   // Form State
   const [newReason, setNewReason] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('Road');
   const [isFinalPayment, setIsFinalPayment] = useState(false);
 
-  // Load from LocalStorage
-  useEffect(() => {
-    const savedFund = localStorage.getItem('sarpanch_total_fund');
-    const savedExpenses = localStorage.getItem('sarpanch_expenses');
-    if (savedFund) setTotalFund(Number(savedFund));
-    if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
-  }, []);
+  const loadData = async () => {
+    try {
+      const budgetRes = await fetch('/api/village-budget');
+      if (budgetRes.ok) {
+        const data = await budgetRes.json();
+        setTotalFund(data.totalFund);
+      }
 
-  // Save to LocalStorage
+      const ledgerRes = await fetch('/api/ledger');
+      if (ledgerRes.ok) {
+        const data = await ledgerRes.json();
+        setExpenses(data.ledger);
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('sarpanch_total_fund', totalFund.toString());
-    localStorage.setItem('sarpanch_expenses', JSON.stringify(expenses));
-  }, [totalFund, expenses]);
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Derived State
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -48,7 +63,7 @@ export function FinanceLedger() {
   const isWarning = totalFund > 0 && remaining < totalFund * 0.10;
 
   // Handlers
-  const handleAddExpense = (e: React.FormEvent) => {
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReason || !newAmount) return;
     
@@ -63,50 +78,61 @@ export function FinanceLedger() {
     
     setExpenses([expense, ...expenses]);
 
-    // Auto-sync with Development Projects
-    const savedProjects = localStorage.getItem('village_projects');
-    const projects: any[] = savedProjects ? JSON.parse(savedProjects) : [];
-    const existingProjectIndex = projects.findIndex((p: any) => p.name.toLowerCase() === newReason.trim().toLowerCase());
-    
-    if (existingProjectIndex === -1) {
-      // Create new project if it doesn't exist
-      const newProj = {
-        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + '-proj',
-        name: newReason.trim(),
-        estimatedCost: Number(newAmount), // Default estimated cost to this first expense
-        category: newCategory,
-        status: isFinalPayment ? 'Completed' : 'Ongoing',
-        createdAt: new Date().toISOString(),
-        ...(isFinalPayment ? { completedAt: new Date().toISOString() } : {})
-      };
-      projects.unshift(newProj);
-    } else {
-      // If it exists, update its status
-      if (isFinalPayment) {
-        projects[existingProjectIndex].status = 'Completed';
-        projects[existingProjectIndex].completedAt = new Date().toISOString();
-      }
+    try {
+      await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+    } catch(err) {
+      console.error(err);
     }
-    
-    localStorage.setItem('village_projects', JSON.stringify(projects));
-    window.dispatchEvent(new Event('storage')); // trigger updates in other tabs/components
 
     setNewReason('');
     setNewAmount('');
     setIsFinalPayment(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       setExpenses(expenses.filter(e => e.id !== id));
+      try {
+        await fetch(`/api/ledger/${id}`, { method: 'DELETE' });
+      } catch(err) {
+        console.error(err);
+      }
     }
   };
 
-  const handleUpdateFund = () => {
-    const newVal = window.prompt('Enter new Total Allocated Fund:', totalFund.toString());
-    if (newVal !== null && !isNaN(Number(newVal))) {
-      setTotalFund(Number(newVal));
+  const handleUpdateFundClick = () => {
+    setFundInputValue(totalFund.toString());
+    setIsUpdateModalOpen(true);
+  };
+
+  const submitFundUpdate = () => {
+    setIsUpdateModalOpen(false);
+    setIsConfirmModalOpen(true);
+  };
+
+  const confirmFundUpdate = async () => {
+    const newVal = Number(fundInputValue);
+    if (!isNaN(newVal)) {
+      setTotalFund(newVal);
+      try {
+        const authHeader = localStorage.getItem('sarpanch_token');
+        await fetch('/api/village-budget', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authHeader ? { 'Authorization': `Bearer ${authHeader}` } : {})
+          },
+          body: JSON.stringify({ totalFund: newVal })
+        });
+      } catch (err) {
+        console.error(err);
+      }
     }
+    setIsConfirmModalOpen(false);
   };
 
   // Chart Data
@@ -132,7 +158,7 @@ export function FinanceLedger() {
           <p className="text-[#8B8B7A] text-sm tracking-wide">Manage public funds & track developmental expenses</p>
         </div>
         <button
-          onClick={handleUpdateFund}
+          onClick={handleUpdateFundClick}
           className="px-4 py-2 bg-[#F4F1EA] border border-[#E6E1D3] rounded-full text-sm font-bold text-[#5A5A40] hover:bg-[#E6E1D3] transition-colors"
         >
           Update Total Fund
@@ -353,6 +379,89 @@ export function FinanceLedger() {
            </div>
          </div>
       )}
+      <AnimatePresence>
+        {isUpdateModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2C2C1E]/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[24px] p-6 max-w-sm w-full shadow-xl border border-[#E6E1D3]"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-serif font-bold text-[#2C2C1E] text-xl">Update Total Village Fund</h3>
+                <button onClick={() => setIsUpdateModalOpen(false)} className="p-2 hover:bg-[#F4F1EA] rounded-full transition-colors text-[#8B8B7A]">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#8B8B7A] uppercase tracking-wider mb-2">New Budget Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={fundInputValue}
+                    onChange={(e) => setFundInputValue(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#F4F1EA] border border-[#E6E1D3] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5A5A40]/50"
+                  />
+                </div>
+                <button
+                  onClick={submitFundUpdate}
+                  className="w-full py-3 bg-[#5A5A40] text-white font-bold rounded-xl hover:bg-[#4a4a35] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isConfirmModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2C2C1E]/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[24px] p-6 max-w-sm w-full shadow-xl border border-[#E6E1D3]"
+            >
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 bg-[#F4F1EA] rounded-full flex items-center justify-center text-[#5A5A40]">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <h3 className="font-serif font-bold text-[#2C2C1E] text-xl">Confirm Update</h3>
+                <p className="text-[#5A5A40]">
+                  Are you sure you want to update the budget to <span className="font-bold">{formatCurrency(Number(fundInputValue) || 0)}</span>?
+                </p>
+                <div className="flex w-full gap-3 mt-4">
+                  <button
+                    onClick={() => setIsConfirmModalOpen(false)}
+                    className="flex-1 py-3 bg-white border border-[#E6E1D3] text-[#5A5A40] font-bold rounded-xl hover:bg-[#F4F1EA] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmFundUpdate}
+                    className="flex-1 py-3 bg-[#D46A43] text-white font-bold rounded-xl hover:bg-[#b05534] transition-colors"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

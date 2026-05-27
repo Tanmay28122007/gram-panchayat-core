@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Droplet, Trash2, Zap, Route, FileText, AlertTriangle, Send, MapPin, Camera, Image as ImageIcon, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { cn } from '../lib/utils';
 import { IssueCategory } from '../types';
 import { useLanguage } from '../LanguageContext';
@@ -206,36 +205,28 @@ export function CitizenPortal({ onReportIssue, isAuthenticated }: CitizenPortalP
                   <span>Location</span>
                   <span className="text-xs text-[#52796F] font-bold">GPS Activated</span>
                 </label>
-                <div className="w-full h-48 bg-[#F4F1EA] rounded-xl border border-[#E6E1D3] relative overflow-hidden flex items-center justify-center">
-                   {coordinates ? (
-                     <Map
-                        defaultCenter={coordinates}
-                        defaultZoom={15}
-                        mapId="CITIZEN_MAP_ID"
-                        internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                        style={{width: '100%', height: '100%'}}
-                        disableDefaultUI={true}
-                     >
-                        <AdvancedMarker position={coordinates}>
-                          <Pin background="#D46A43" glyphColor="#fff" borderColor="#ab5433" />
-                        </AdvancedMarker>
-                     </Map>
-                   ) : (
-                     <div className="text-center z-10 p-4">
-                        <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center mx-auto mb-2 text-[#D46A43] group-hover:-translate-y-1 transition-transform">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        {locationError ? (
-                          <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest bg-white/90 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm truncate max-w-[200px]">
-                            {locationError}
-                          </p>
-                        ) : (
-                          <p className="text-xs font-bold text-[#5A5A40] uppercase tracking-widest bg-white/90 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm">
-                            Acquiring GPS...
-                          </p>
-                        )}
-                     </div>
-                   )}
+                <div className="w-full h-48 bg-[#F4F1EA] rounded-xl border border-[#E6E1D3] relative overflow-hidden flex items-center justify-center cursor-crosshair group">
+                   {/* Fake map grid pattern */}
+                   <div className="absolute inset-0 opacity-10 flex flex-wrap" style={{ backgroundImage: 'radial-gradient(#2C2C1E 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                   
+                   <div className="text-center z-10 p-4">
+                      <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center mx-auto mb-2 text-[#D46A43] group-hover:-translate-y-1 transition-transform">
+                        <MapPin className="w-5 h-5" />
+                      </div>
+                      {coordinates ? (
+                        <p className="text-xs font-bold text-[#5A5A40] uppercase tracking-widest bg-white/90 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm">
+                          {coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)}
+                        </p>
+                      ) : locationError ? (
+                        <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest bg-white/90 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm truncate max-w-[200px]">
+                          {locationError}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-bold text-[#5A5A40] uppercase tracking-widest bg-white/90 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm">
+                          Acquiring GPS...
+                        </p>
+                      )}
+                   </div>
                 </div>
               </div>
               

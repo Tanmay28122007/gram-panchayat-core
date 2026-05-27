@@ -93,9 +93,26 @@ export function SchemeCategories() {
                 className="group bg-white border border-[#5A5A40]/10 rounded-[16px] p-4 flex flex-col items-center justify-center text-center hover:scale-105 hover:shadow-sm hover:border-[#A3B18A] transition-all cursor-pointer h-[120px]"
               >
                 <div className="w-10 h-10 rounded-full bg-[#FDFBF7] flex items-center justify-center text-[#5A5A40] group-hover:text-[#52796F] group-hover:bg-[#A3B18A]/10 transition-colors mb-3">
-                  <Icon className="w-5 h-5" />
+                  <Icon 
+                    className="w-5 h-5" 
+                    style={
+                      i === 0 ? { fontSize: '18px' } : 
+                      i === 13 ? { width: 'auto', height: 'auto' } : 
+                      undefined
+                    } 
+                  />
                 </div>
-                <span className="font-bold font-sans text-[#5A5A40] text-[11px] leading-tight group-hover:text-[#2C2C1E] transition-colors line-clamp-2">
+                <span 
+                  className="font-bold font-sans text-[#5A5A40] text-[11px] leading-tight group-hover:text-[#2C2C1E] transition-colors line-clamp-2"
+                  style={
+                    i >= 0 && i <= 4 ? { fontSize: '12px' } :
+                    i >= 5 && i <= 10 ? { fontSize: '13px' } :
+                    i === 11 ? { fontSize: '14px' } :
+                    i === 12 ? { fontSize: '13px' } :
+                    i === 13 ? { fontSize: '12px' } :
+                    undefined
+                  }
+                >
                   {title}
                 </span>
               </motion.a>

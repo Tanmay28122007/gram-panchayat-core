@@ -13,6 +13,7 @@ import { CitizenRegister } from "./components/CitizenRegister";
 import { ComplaintTracker } from "./components/ComplaintTracker";
 import { SarpanchDashboard } from "./components/SarpanchDashboard";
 import { FinanceLedger } from "./components/FinanceLedger";
+import { DisclaimerBanner } from "./components/DisclaimerBanner";
 import { SarpanchLogin } from "./components/SarpanchLogin";
 import { SeasonPanel } from "./components/SeasonPanel";
 import { ProjectMonitoring } from "./components/ProjectMonitoring";
@@ -183,6 +184,7 @@ function RouterApp() {
 
   return (
     <>
+      <DisclaimerBanner />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <BrowserRouter>
         <Routes>
@@ -282,20 +284,10 @@ function RouterApp() {
   );
 }
 
-import { APIProvider } from '@vis.gl/react-google-maps';
-
-const API_KEY =
-  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
-  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
-  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
-  '';
-
 export default function App() {
   return (
     <LanguageProvider>
-      <APIProvider apiKey={API_KEY} version="weekly">
-        <RouterApp />
-      </APIProvider>
+      <RouterApp />
     </LanguageProvider>
   );
 }
@@ -307,7 +299,7 @@ function CitizenAppLayout({ children, user, onLogout }: { children: React.ReactN
   const navigate = useNavigate();
   return (
     <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#3D3D3D] font-sans selection:bg-[#A3B18A]/30">
-      <nav className="bg-white/50 backdrop-blur-md border-b border-[#E6E1D3] sticky top-0 z-50">
+      <nav className="bg-white/50 backdrop-blur-md border-b border-[#E6E1D3] sticky top-8 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3 px-2">
@@ -418,7 +410,7 @@ function SarpanchAppLayout({ children, onLogout }: { children: React.ReactNode, 
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F1EA] text-[#3D3D3D] font-sans selection:bg-[#8B5A2B]/30">
-      <nav className="bg-white/80 backdrop-blur-md border-b border-[#E6E1D3] sticky top-0 z-50">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-[#E6E1D3] sticky top-8 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3 px-2">

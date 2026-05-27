@@ -1,10 +1,9 @@
 import React from 'react';
 import { Issue } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, CheckCircle2, Clock, MapPin, ThumbsUp, ArrowUpRight, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, MapPin, Map, ThumbsUp, ArrowUpRight, Users, X, ImageOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../LanguageContext';
-import { Map, AdvancedMarker, Pin, InfoWindow, useAdvancedMarkerRef } from '@vis.gl/react-google-maps';
 
 interface SarpanchDashboardProps {
   issues: Issue[];
@@ -13,32 +12,9 @@ interface SarpanchDashboardProps {
   onReview: (id: string) => void;
 }
 
-function ComplaintMarker({ issue }: { issue: Issue; key?: string | number }) {
-  const [markerRef, marker] = useAdvancedMarkerRef();
-  const [open, setOpen] = React.useState(false);
-
-  if (!issue.coordinates) return null;
-
-  return (
-    <>
-      <AdvancedMarker ref={markerRef} position={issue.coordinates} onClick={() => setOpen(true)}>
-        <Pin background={issue.status === 'red' ? '#EF4444' : issue.status === 'yellow' ? '#EAB308' : '#22C55E'} glyphColor="#fff" borderColor={issue.status === 'red' ? '#B91C1C' : issue.status === 'yellow' ? '#A16207' : '#15803D'} />
-      </AdvancedMarker>
-      {open && (
-        <InfoWindow anchor={marker} onCloseClick={() => setOpen(false)}>
-          <div className="p-2 max-w-[200px] text-left">
-            <p className="font-bold text-[#2C2C1E] text-sm uppercase tracking-wider mb-1">{issue.category}</p>
-            <p className="text-xs text-[#5A5A40] mb-2">{issue.description}</p>
-            <p className="text-[10px] text-[#8B8B7A]">Anonymous Reporter</p>
-          </div>
-        </InfoWindow>
-      )}
-    </>
-  );
-}
-
 export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: SarpanchDashboardProps) {
   const { t } = useLanguage();
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
   
   const getStatusColor = (status: Issue['status']) => {
     switch (status) {
@@ -87,21 +63,6 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
         </div>
       </div>
 
-      <div className="w-full h-64 sm:h-96 bg-white rounded-[24px] border border-[#E6E1D3] overflow-hidden shadow-sm relative">
-        <Map
-          defaultCenter={{lat: 28.6139, lng: 77.2090}} // Defaults to somewhere central if no GPS
-          defaultZoom={12}
-          mapId="SARPANCH_MAP_ID"
-          internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-          style={{width: '100%', height: '100%'}}
-          gestureHandling="cooperative"
-        >
-          {issues.map(issue => (
-            <ComplaintMarker key={`marker-${issue.id}`} issue={issue} />
-          ))}
-        </Map>
-      </div>
-
       <div className="grid gap-4">
         <AnimatePresence>
           {sortedIssues.map((issue, index) => (
@@ -131,9 +92,20 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
               
               <div>
                 <h3 className="text-lg font-serif font-bold text-[#2C2C1E]">{issue.title}</h3>
-                <p className="text-[#3D3D3D] text-sm mt-1">{issue.description}</p>
-                {issue.issueImageUrl && (
-                  <img src={issue.issueImageUrl} alt="Issue" className="mt-3 w-full max-w-[200px] h-32 rounded-lg object-cover border border-[#E6E1D3]" />
+                <p className="text-[#3D3D3D] text-sm mt-1 mb-3">{issue.description}</p>
+                {issue.issueImageUrl ? (
+                  <div 
+                    className="relative w-[100px] h-[100px] shrink-0 rounded-xl overflow-hidden border border-[#E6E1D3] cursor-pointer group shadow-sm bg-[#F4F1EA]"
+                    onClick={() => setSelectedImage(issue.issueImageUrl!)}
+                  >
+                    <img src={issue.issueImageUrl} alt="Issue thumbnail" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                  </div>
+                ) : (
+                  <div className="w-[100px] h-[100px] shrink-0 rounded-xl border border-dashed border-[#A3B18A]/50 bg-[#F4F1EA]/50 flex flex-col items-center justify-center text-[#8B8B7A]">
+                    <ImageOff className="w-6 h-6 mb-1.5 opacity-50 text-[#5A5A40]" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-center leading-tight">No Image<br/>Attached</span>
+                  </div>
                 )}
               </div>
 
@@ -143,6 +115,17 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
                 </div>
                 <div className="flex items-center gap-1.5">
                   <MapPin className="w-4 h-4" /> {issue.location}
+                  {issue.coordinates?.lat && issue.coordinates?.lng && (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${issue.coordinates.lat},${issue.coordinates.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 bg-[#F4F1EA] hover:bg-[#E6E1D3] text-[#5A5A40] px-2 py-0.5 rounded border border-[#E6E1D3] transition-colors ml-1 cursor-pointer"
+                      title="Open in Google Maps"
+                    >
+                      <Map className="w-3 h-3" /> <span className="text-[10px]">Get Exact Location</span>
+                    </a>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4" /> {new Date(issue.reportedAt).toLocaleDateString()}
@@ -203,6 +186,37 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
           ))}
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-4 sm:p-8 backdrop-blur-sm cursor-zoom-out"
+          >
+            <div className="relative max-w-5xl w-full h-full flex items-center justify-center pointer-events-none">
+              <button 
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 p-2.5 text-white bg-black/30 hover:bg-black/60 rounded-full transition-all pointer-events-auto z-[210] cursor-pointer backdrop-blur-sm"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <motion.img 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                src={selectedImage} 
+                alt="Maximized preview" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl pointer-events-auto cursor-default ring-1 ring-white/20"
+                onClick={(e) => e.stopPropagation()} 
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

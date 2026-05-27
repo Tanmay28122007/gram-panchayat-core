@@ -9,7 +9,58 @@ import jwt from 'jsonwebtoken';
 
 const USERS_FILE = path.join(process.cwd(), 'users.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123';
+const LEDGER_FILE = path.join(process.cwd(), 'ledger.json');
+const PROJECTS_FILE = path.join(process.cwd(), 'projects.json');
 
+function loadLedger(): any[] {
+  if (fs.existsSync(LEDGER_FILE)) {
+    return JSON.parse(fs.readFileSync(LEDGER_FILE, 'utf-8'));
+  }
+  return [];
+}
+
+function saveLedger(data: any[]) {
+  fs.writeFileSync(LEDGER_FILE, JSON.stringify(data, null, 2));
+}
+
+function loadProjects(): any[] {
+  if (fs.existsSync(PROJECTS_FILE)) {
+    return JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf-8'));
+  }
+  return [];
+}
+
+function saveProjects(data: any[]) {
+  fs.writeFileSync(PROJECTS_FILE, JSON.stringify(data, null, 2));
+}
+
+const BUDGET_FILE = path.join(process.cwd(), 'villageBudget.json');
+
+function loadVillageBudget(): { totalFund: number } {
+  if (fs.existsSync(BUDGET_FILE)) {
+    return JSON.parse(fs.readFileSync(BUDGET_FILE, 'utf-8'));
+  }
+  return { totalFund: 5000000 };
+}
+
+function saveVillageBudget(data: { totalFund: number }) {
+  fs.writeFileSync(BUDGET_FILE, JSON.stringify(data, null, 2));
+}
+
+// Initial mock data if empty
+if (!fs.existsSync(PROJECTS_FILE)) {
+  saveProjects([
+    {
+      id: 'proj-1',
+      name: 'Primary School Solar Panels',
+      estimatedCost: 250000,
+      category: 'Solar Energy',
+      status: 'Completed',
+      createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+      completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ]);
+}
 function loadUsers(): any[] {
   if (fs.existsSync(USERS_FILE)) {
     return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
@@ -272,6 +323,82 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.get('/api/projects', (req, res) => {
+    res.json({ projects: loadProjects() });
+  });
+
+  app.post('/api/projects', (req, res) => {
+    const projects = loadProjects();
+    const newProject = req.body;
+    projects.unshift(newProject);
+    saveProjects(projects);
+    res.json({ success: true, project: newProject });
+  });
+
+  app.put('/api/projects/:id', (req, res) => {
+    const projects = loadProjects();
+    const idx = projects.findIndex((p: any) => p.id === req.params.id);
+    if (idx !== -1) {
+      projects[idx] = { ...projects[idx], ...req.body };
+      saveProjects(projects);
+      res.json({ success: true, project: projects[idx] });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  });
+
+  app.delete('/api/projects/:id', (req, res) => {
+    const projects = loadProjects();
+    const newProjects = projects.filter((p: any) => p.id !== req.params.id);
+    saveProjects(newProjects);
+    res.json({ success: true });
+  });
+
+  app.get('/api/ledger', (req, res) => {
+    res.json({ ledger: loadLedger() });
+  });
+
+  app.post('/api/ledger', (req, res) => {
+    const ledger = loadLedger();
+    const newEntry = req.body;
+    ledger.unshift(newEntry);
+    saveLedger(ledger);
+
+    // Automation Logic: Auto-sync with Projects Database
+    const projects = loadProjects();
+    const projectName = newEntry.reason.trim();
+    const existingIdx = projects.findIndex((p: any) => p.name.toLowerCase() === projectName.toLowerCase());
+
+    if (existingIdx === -1) {
+      const newProj = {
+        id: newEntry.id + '-proj',
+        name: projectName,
+        estimatedCost: Number(newEntry.amount), // Allocated Budget
+        category: newEntry.category,
+        status: newEntry.isFinalPayment ? 'Completed' : 'Ongoing',
+        createdAt: newEntry.date || new Date().toISOString(),
+        ...(newEntry.isFinalPayment ? { completedAt: new Date().toISOString() } : {})
+      };
+      projects.unshift(newProj);
+      saveProjects(projects);
+    } else {
+       if (newEntry.isFinalPayment) {
+         projects[existingIdx].status = 'Completed';
+         projects[existingIdx].completedAt = new Date().toISOString();
+         saveProjects(projects);
+       }
+    }
+
+    res.json({ success: true, entry: newEntry });
+  });
+
+  app.delete('/api/ledger/:id', (req, res) => {
+    const ledger = loadLedger();
+    const newLedger = ledger.filter((e: any) => e.id !== req.params.id);
+    saveLedger(newLedger);
+    res.json({ success: true });
+  });
+
   app.post('/api/auth/register', async (req, res) => {
     try {
       const { firstName, lastName, phoneNumber, email, password } = req.body;
@@ -343,6 +470,34 @@ async function startServer() {
       res.json({ user: userResponse });
     } catch (e) {
       res.status(401).json({ error: 'Invalid token' });
+    }
+  });
+
+  app.get('/api/village-budget', (req, res) => {
+    res.json(loadVillageBudget());
+  });
+
+  app.put('/api/village-budget', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+    
+    // Simplistic auth check (enforce logged-in user context in MVP where Sarpanch is the only one who can hit this in UI)
+    try {
+      const token = authHeader.split(' ')[1];
+      jwt.verify(token, JWT_SECRET);
+      
+      const { totalFund } = req.body;
+      if (typeof totalFund !== 'number' || totalFund < 0) {
+        return res.status(400).json({ error: 'Invalid fund amount' });
+      }
+      
+      saveVillageBudget({ totalFund });
+      // Minimal audit log (could write to file, console for now)
+      console.log(`[AUDIT] Budget updated to ${totalFund} by token ${token.substring(0, 10)}... at ${new Date().toISOString()}`);
+      
+      res.json({ success: true, totalFund });
+    } catch (e) {
+      res.status(403).json({ error: 'Unauthorized to update budget' });
     }
   });
 

@@ -30,50 +30,30 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const [newCost, setNewCost] = useState('');
   const [newCategory, setNewCategory] = useState('Road & Infrastructure');
 
-  const loadData = () => {
-    const savedProjects = localStorage.getItem('village_projects');
-    if (savedProjects) {
-      setProjects(JSON.parse(savedProjects));
-    } else {
-      // Mock data if empty
-      const initial: DevelopmentProject[] = [
-        {
-          id: 'proj-1',
-          name: 'Primary School Solar Panels',
-          estimatedCost: 250000,
-          category: 'Solar Energy',
-          status: 'Ongoing',
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'proj-2',
-          name: 'Main Road Drainage Repair',
-          estimatedCost: 150000,
-          category: 'Drainage',
-          status: 'Completed',
-          createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-          completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ];
-      setProjects(initial);
-      localStorage.setItem('village_projects', JSON.stringify(initial));
-    }
-
-    const savedExpenses = localStorage.getItem('sarpanch_expenses');
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
+  const loadData = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects);
+      }
+      
+      const ledgerRes = await fetch('/api/ledger');
+      if (ledgerRes.ok) {
+        const data = await ledgerRes.json();
+        setExpenses(data.ledger);
+      }
+    } catch(err) {
+      console.error(err);
     }
   };
 
   useEffect(() => {
     loadData();
-    window.addEventListener('storage', loadData);
-    return () => window.removeEventListener('storage', loadData);
+    // Poll every 5 seconds to show "real-time visibility" across both Citizen and Sarpanch portals
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('village_projects', JSON.stringify(projects));
-  }, [projects]);
 
   const categories = ['All', 'Road & Infrastructure', 'Water Supply', 'Solar Energy', 'Drainage', 'Education', 'Health'];
 
@@ -92,7 +72,7 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     return map;
   }, [expenses]);
 
-  const handleAddProject = (e: React.FormEvent) => {
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newCost) return;
 
@@ -106,19 +86,46 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     };
 
     setProjects([newProject, ...projects]);
+    
+    try {
+      await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProject)
+      });
+    } catch(err) {
+      console.error(err);
+    }
+
     setNewName('');
     setNewCost('');
   };
 
-  const handleStatusChange = (id: string, newStatus: DevelopmentProject['status']) => {
+  const handleStatusChange = async (id: string, newStatus: DevelopmentProject['status']) => {
+    const completedAt = newStatus === 'Completed' ? new Date().toISOString() : undefined;
     setProjects(projects.map(p => 
-      p.id === id ? { ...p, status: newStatus, completedAt: newStatus === 'Completed' ? new Date().toISOString() : p.completedAt } : p
+      p.id === id ? { ...p, status: newStatus, completedAt: completedAt || p.completedAt } : p
     ));
+    
+    try {
+      await fetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, completedAt })
+      });
+    } catch(err) {
+      console.error(err);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
       setProjects(projects.filter(p => p.id !== id));
+      try {
+        await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      } catch(err) {
+        console.error(err);
+      }
     }
   };
 
