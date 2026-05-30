@@ -107,9 +107,9 @@ export function FloatingChat({
           if (!user) {
             setChatState('AWAITING_LOGIN');
             addBotMessage(
-              localLang === 'en'
+              "REDIRECT_TO_REGISTER\n\n" + (localLang === 'en'
                 ? "I see you want to file a complaint. To securely track it, you need an account. I have opened the registration page for you. Please fill it out, and I will be waiting right here to take your complaint the moment you are done!"
-                : "હું જોઉં છું કે તમે ફરિયાદ નોંધાવવા માંગો છો. તેને સુરક્ષિત રીતે ટ્રૅક કરવા માટે, તમારે એકાઉન્ટની જરૂર છે. મેં તમારા માટે નોંધણી પૃષ્ઠ ખોલ્યું છે. કૃપા કરીને તેને ભરો, અને હું તમારી ફરિયાદ લેવા માટે અહીં જ રાહ જોઈશ!"
+                : "હું જોઉં છું કે તમે ફરિયાદ નોંધાવવા માંગો છો. તેને સુરક્ષિત રીતે ટ્રૅક કરવા માટે, તમારે એકાઉન્ટની જરૂર છે. મેં તમારા માટે નોંધણી પૃષ્ઠ ખોલ્યું છે. કૃપા કરીને તેને ભરો, અને હું તમારી ફરિયાદ લેવા માટે અહીં જ રાહ જોઈશ!")
             );
             navigate('/citizen-register');
           } else {
@@ -158,10 +158,20 @@ export function FloatingChat({
         setChatState('IDLE');
         setPendingCategory('');
         
-        addBotMessage(
-          localLang === 'en'
+        const payload = {
+          event: "LODGE_COMPLAINT",
+          citizen_id: user?.id || "unknown",
+          category: pendingCategory,
+          description: userText,
+          status: "Pending"
+        };
+        
+        const confirmationMessage = localLang === 'en'
             ? `Your complaint has been successfully registered! Your Ticket ID is ${ticketId}. The Sarpanch has been notified instantly.`
-            : `તમારી ફરિયાદ સફળતાપૂર્વક નોંધણી થઈ ગઈ છે! તમારો ટિકિટ સુરક્ષા નંબર ${ticketId} છે. સરપંચને તુરંત જ જાણ કરવામાં આવી છે.`
+            : `તમારી ફરિયાદ સફળતાપૂર્વક નોંધણી થઈ ગઈ છે! તમારો ટિકિટ સુરક્ષા નંબર ${ticketId} છે. સરપંચને તુરંત જ જાણ કરવામાં આવી છે.`;
+            
+        addBotMessage(
+          `${confirmationMessage}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``
         );
       }
     }, 600);
@@ -237,7 +247,7 @@ export function FloatingChat({
                 >
                   <div 
                     className={cn(
-                      "px-3 py-2 rounded-2xl text-sm shadow-sm",
+                      "px-3 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap font-sans",
                       msg.sender === 'user' 
                         ? "bg-[#52796F] text-white rounded-tr-sm" 
                         : "bg-white border border-[#E6E1D3] text-[#3D3D3D] rounded-tl-sm"
