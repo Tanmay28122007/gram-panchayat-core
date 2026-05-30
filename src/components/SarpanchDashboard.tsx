@@ -1,9 +1,10 @@
 import React from 'react';
 import { Issue } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, CheckCircle2, Clock, MapPin, Map, ThumbsUp, ArrowUpRight, Users, X, ImageOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, MapPin, Map, ThumbsUp, ArrowUpRight, Users, X, ImageOff, ShieldAlert } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../LanguageContext';
+import { APIProvider, Map as GoogleMap, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 
 interface SarpanchDashboardProps {
   issues: Issue[];
@@ -15,6 +16,8 @@ interface SarpanchDashboardProps {
 export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: SarpanchDashboardProps) {
   const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  const [mapCenter, setMapCenter] = React.useState({ lat: 21.1702, lng: 72.8311 });
+  const [zoom, setZoom] = React.useState(12);
   
   const prevIssuesRef = React.useRef(issues);
   const [highlightedId, setHighlightedId] = React.useState<string | null>(null);
@@ -26,14 +29,26 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
       
       if (newIssue) {
         setHighlightedId(newIssue.id);
-        const timer = setTimeout(() => setHighlightedId(null), 3000);
-        
-        // Also fire a Toast or small visual cue can be omitted if highlight is enough,
-        // but we can play a small animation by setting highlightedId
+        setTimeout(() => setHighlightedId(null), 3000);
+        if (newIssue.coordinates) {
+          setMapCenter(newIssue.coordinates);
+          setZoom(15);
+        }
       }
     }
     prevIssuesRef.current = issues;
   }, [issues]);
+
+  const getPinColor = (status: Issue['status']) => {
+    switch (status) {
+      case 'red': return '#ef4444';
+      case 'yellow': return '#f59e0b';
+      case 'green': return '#22c55e';
+      default: return '#9ca3af';
+    }
+  };
+
+  const activeIssuesWithCoordinates = issues.filter(i => i.status !== 'resolved' && i.coordinates);
 
   const getStatusColor = (status: Issue['status']) => {
     switch (status) {
@@ -73,12 +88,51 @@ export function SarpanchDashboard({ issues, onEscalate, onResolve, onReview }: S
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
           <h2 className="text-2xl font-serif font-bold tracking-tight text-[#2C2C1E]">{t.dashboardTitle}</h2>
-          <p className="text-[#8B8B7A] text-sm">{t.dashboardSub}</p>
+          <p className="text-[#8B8B7A] text-sm flex items-center gap-2 mt-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            Real-time Live Sync Active
+          </p>
         </div>
         <div className="flex gap-4 text-xs font-bold text-[#8B8B7A] uppercase tracking-wider">
            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500"></div>{t.overdue}</div>
            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-500"></div>{t.pending}</div>
            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500"></div>{t.new}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[24px] border border-[#E6E1D3] shadow-sm overflow-hidden h-[300px] sm:h-[400px] w-full relative">
+        <APIProvider apiKey="">
+          <GoogleMap
+            defaultZoom={12}
+            defaultCenter={{ lat: 21.1702, lng: 72.8311 }}
+            center={mapCenter}
+            zoom={zoom}
+            gestureHandling={'greedy'}
+            disableDefaultUI={true}
+            mapId="DEMO_MAP_ID"
+            onCenterChanged={(ev) => setMapCenter(ev.detail.center)}
+            onZoomChanged={(ev) => setZoom(ev.detail.zoom)}
+          >
+            {activeIssuesWithCoordinates.map((issue) => (
+              <AdvancedMarker 
+                key={issue.id} 
+                position={issue.coordinates}
+                title={issue.title}
+              >
+                <Pin 
+                  background={getPinColor(issue.status)} 
+                  borderColor={getPinColor(issue.status)} 
+                  glyphColor="#fff" 
+                />
+              </AdvancedMarker>
+            ))}
+          </GoogleMap>
+        </APIProvider>
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-2 rounded-[16px] border border-[#E6E1D3] shadow-sm flex items-center text-xs font-bold text-[#5A5A40] pointer-events-none z-10 uppercase tracking-widest">
+           <ShieldAlert className="w-4 h-4 mr-2 text-green-600" /> Live Area Map
         </div>
       </div>
 

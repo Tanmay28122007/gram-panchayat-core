@@ -19,6 +19,7 @@ import { SeasonPanel } from "./components/SeasonPanel";
 import { ProjectMonitoring } from "./components/ProjectMonitoring";
 import { GlobalFooter } from "./components/GlobalFooter";
 import { RoleSelection } from "./components/RoleSelection";
+import { FloatingChat } from "./components/FloatingChat";
 import { ToastContainer, ToastMessage } from "./components/Toast";
 import axios from "axios";
 import {
@@ -249,7 +250,10 @@ function RouterApp() {
           path="/sarpanch-dashboard/*"
           element={
             isSarpanchAuthenticated ? (
-              <SarpanchAppLayout onLogout={() => setIsSarpanchAuthenticated(false)}>
+              <SarpanchAppLayout 
+                onLogout={() => setIsSarpanchAuthenticated(false)}
+                pendingCount={issues.filter(i => i.status !== 'resolved').length}
+              >
                 <Routes>
                   <Route
                     path="/"
@@ -288,9 +292,11 @@ export default function App() {
   return (
     <LanguageProvider>
       <RouterApp />
+      <FloatingChat />
     </LanguageProvider>
   );
 }
+
 
 // Layout components
 
@@ -399,7 +405,7 @@ function CitizenAppLayout({ children, user, onLogout }: { children: React.ReactN
   );
 }
 
-function SarpanchAppLayout({ children, onLogout }: { children: React.ReactNode, onLogout: () => void }) {
+function SarpanchAppLayout({ children, onLogout, pendingCount }: { children: React.ReactNode, onLogout: () => void, pendingCount: number }) {
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
 
@@ -434,6 +440,10 @@ function SarpanchAppLayout({ children, onLogout }: { children: React.ReactNode, 
             </div>
 
             <div className="flex gap-2 sm:gap-4 items-center">
+              <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full text-green-700 animate-pulse">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Live Sync Active</span>
+              </div>
               <button
                 onClick={() => setLang(lang === "en" ? "gu" : "en")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E6E1D3] text-xs font-bold text-[#5A5A40] hover:bg-[#FDFBF7] transition-colors"
@@ -449,6 +459,7 @@ function SarpanchAppLayout({ children, onLogout }: { children: React.ReactNode, 
                   active={window.location.pathname.includes("/overview")}
                   icon={LayoutDashboard}
                   label="Overview"
+                  badgeCount={pendingCount}
                 />
                 <NavButton
                   onClick={() => navigate("/sarpanch-dashboard/finance")}
@@ -521,17 +532,19 @@ function NavButton({
   onClick,
   icon: Icon,
   label,
+  badgeCount
 }: {
   active: boolean;
   onClick: () => void;
   icon: any;
   label: string;
+  badgeCount?: number;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-colors cursor-pointer",
+        "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-colors cursor-pointer relative",
         active
           ? "bg-[#5A5A40] text-white"
           : "text-[#8B8B7A] hover:text-[#2C2C1E] hover:bg-[#E6E1D3]/50",
@@ -539,6 +552,11 @@ function NavButton({
     >
       <Icon className="w-4 h-4" />
       <span className="hidden sm:inline">{label}</span>
+      {badgeCount !== undefined && (
+        <span className="ml-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+          {badgeCount}
+        </span>
+      )}
     </button>
   );
 }
