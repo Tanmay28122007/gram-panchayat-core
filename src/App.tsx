@@ -283,6 +283,12 @@ function RouterApp() {
           }
         />
       </Routes>
+      <FloatingChat 
+        user={citizenUser}
+        onAddIssue={(issue) => {
+          setIssues((prev: any) => [issue, ...prev]);
+        }}
+      />
     </BrowserRouter>
     </>
   );
@@ -292,7 +298,6 @@ export default function App() {
   return (
     <LanguageProvider>
       <RouterApp />
-      <FloatingChat />
     </LanguageProvider>
   );
 }

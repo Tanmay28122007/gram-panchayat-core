@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, X, Send, Languages, Minimize2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useLanguage } from '../LanguageContext';
+import { useNavigate } from 'react-router-dom';
 
 type Message = {
   id: string;
@@ -25,12 +26,22 @@ const chatTranslations = {
   }
 };
 
-export function FloatingChat() {
+export function FloatingChat({ 
+  user, 
+  onAddIssue 
+}: { 
+  user: any;
+  onAddIssue: (issue: any) => void;
+}) {
   const { lang: globalLang } = useLanguage();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  // Independent language toggle for the chat widget as requested
   const [localLang, setLocalLang] = useState<'en' | 'gu'>('en');
   
+  type ChatState = 'IDLE' | 'AWAITING_LOGIN' | 'GATHER_CATEGORY' | 'GATHER_DESCRIPTION';
+  const [chatState, setChatState] = useState<ChatState>('IDLE');
+  const [pendingCategory, setPendingCategory] = useState<string>('');
+
   // Sync initial language with global context if needed, but we keep it independent
   useEffect(() => {
     if (globalLang === 'en' || globalLang === 'gu') {
@@ -49,27 +60,111 @@ export function FloatingChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
+  // Post-registration handshake
+  useEffect(() => {
+    if (user && chatState === 'AWAITING_LOGIN') {
+      setChatState('GATHER_CATEGORY');
+      setTimeout(() => {
+        addBotMessage(
+          localLang === 'en' 
+            ? "Welcome! Your account is ready. Let's get your issue resolved right away. Which category/department does your complaint belong to? (e.g., Water Supply, Roads, Electricity, Sanitation)"
+            : "સ્વાગત છે! તમારું એકાઉન્ટ તૈયાર છે. ચાલો શરૂ કરીએ. તમારી ફરિયાદ કયા વિભાગની છે? (દા.ત., પાણી પુરવઠો, રસ્તા, વીજળી, સ્વચ્છતા)"
+        );
+      }, 500);
+    }
+  }, [user, chatState, localLang]);
+
+  const addBotMessage = (text: string) => {
+    setMessages((prev) => [...prev, {
+      id: Date.now().toString(),
+      sender: 'bot',
+      text
+    }]);
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
 
+    const userText = inputValue.trim();
     const newMessage: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: inputValue.trim()
+      text: userText
     };
 
     setMessages((prev) => [...prev, newMessage]);
     setInputValue('');
 
-    // Simulate bot response after a short delay
+    const lower = userText.toLowerCase();
+
+    // Intent Detection & State Machine
     setTimeout(() => {
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        sender: 'bot',
-        text: localLang === 'en' ? "Thank you for reaching out. An agent will be with you shortly." : "તમારો સંપર્ક કરવા બદલ આભાર. એક પ્રતિનિધિ ટૂંક સમયમાં તમારી સાથે જોડાશે."
-      }]);
-    }, 1000);
+      if (chatState === 'IDLE') {
+        const isComplaint = lower.includes('complaint') || lower.includes('grievance') || lower.includes('issue') || lower.includes('ફરિયાદ') || lower.includes('સમસ્યા');
+        
+        if (isComplaint) {
+          if (!user) {
+            setChatState('AWAITING_LOGIN');
+            addBotMessage(
+              localLang === 'en'
+                ? "I see you want to file a complaint. To securely track it, you need an account. I have opened the registration page for you. Please fill it out, and I will be waiting right here to take your complaint the moment you are done!"
+                : "હું જોઉં છું કે તમે ફરિયાદ નોંધાવવા માંગો છો. તેને સુરક્ષિત રીતે ટ્રૅક કરવા માટે, તમારે એકાઉન્ટની જરૂર છે. મેં તમારા માટે નોંધણી પૃષ્ઠ ખોલ્યું છે. કૃપા કરીને તેને ભરો, અને હું તમારી ફરિયાદ લેવા માટે અહીં જ રાહ જોઈશ!"
+            );
+            navigate('/citizen-register');
+          } else {
+            setChatState('GATHER_CATEGORY');
+            addBotMessage(
+              localLang === 'en'
+                ? "Which category/department does your complaint belong to? (e.g., Water Supply, Roads, Electricity, Sanitation)"
+                : "તમારી ફરિયાદ કયા વિભાગની છે? (દા.ત., પાણી પુરવઠો, રસ્તા, વીજળી, સ્વચ્છતા)"
+            );
+          }
+        } else {
+          addBotMessage(
+            localLang === 'en' 
+              ? "Thank you for reaching out. How can I assist you with the portal?" 
+              : "તમારો સંપર્ક કરવા બદલ આભાર. હું તમને કેવી રીતે મદદ કરી શકું?"
+          );
+        }
+      } else if (chatState === 'GATHER_CATEGORY') {
+        setPendingCategory(userText);
+        setChatState('GATHER_DESCRIPTION');
+        addBotMessage(
+          localLang === 'en'
+            ? "Got it. Now, please describe your complaint in detail. You can write in your own words."
+            : "સમજાયું. હવે, કૃપા કરીને તમારી ફરિયાદનું વિગતવાર વર્ણન કરો. તમે તમારા પોતાના શબ્દોમાં લખી શકો છો."
+        );
+      } else if (chatState === 'GATHER_DESCRIPTION') {
+        // Submit the complaint
+        const ticketId = 'TKT-' + Math.floor(1000 + Math.random() * 9000);
+        
+        const issue = {
+          id: ticketId,
+          title: `${pendingCategory} Issue`,
+          category: 'other', // fallback, actual category matching could be complex
+          description: userText,
+          location: 'Reported via Assistant',
+          reporter: user?.name || 'Anonymous',
+          reporterId: user?.id,
+          upvotes: 0,
+          status: 'green',
+          reportedAt: new Date().toISOString(),
+          escalated: false,
+        };
+
+        onAddIssue(issue);
+        
+        setChatState('IDLE');
+        setPendingCategory('');
+        
+        addBotMessage(
+          localLang === 'en'
+            ? `Your complaint has been successfully registered! Your Ticket ID is ${ticketId}. The Sarpanch has been notified instantly.`
+            : `તમારી ફરિયાદ સફળતાપૂર્વક નોંધણી થઈ ગઈ છે! તમારો ટિકિટ સુરક્ષા નંબર ${ticketId} છે. સરપંચને તુરંત જ જાણ કરવામાં આવી છે.`
+        );
+      }
+    }, 600);
   };
 
   const toggleLanguage = () => {
