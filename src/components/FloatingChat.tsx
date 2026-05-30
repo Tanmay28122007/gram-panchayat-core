@@ -139,22 +139,6 @@ export function FloatingChat({
         // Submit the complaint
         const ticketId = 'TKT-' + Math.floor(1000 + Math.random() * 9000);
         
-        const issue = {
-          id: ticketId,
-          title: `${pendingCategory} Issue`,
-          category: 'other', // fallback, actual category matching could be complex
-          description: userText,
-          location: 'Reported via Assistant',
-          reporter: user?.name || 'Anonymous',
-          reporterId: user?.id,
-          upvotes: 0,
-          status: 'green',
-          reportedAt: new Date().toISOString(),
-          escalated: false,
-        };
-
-        onAddIssue(issue);
-        
         setChatState('IDLE');
         setPendingCategory('');
         
@@ -163,8 +147,19 @@ export function FloatingChat({
           citizen_id: user?.id || "unknown",
           category: pendingCategory,
           description: userText,
-          status: "Pending"
+          status: "Pending",
+          createdAt: new Date().toISOString()
         };
+
+        import('../lib/firebase').then(async ({ db }) => {
+          const { collection, addDoc } = await import('firebase/firestore');
+          try {
+            await addDoc(collection(db, "complaints"), payload);
+            console.log("Success! Data is now in the global database cloud.");
+          } catch (error: any) {
+            console.error("Database storage failed. Check your connection setup:", error.message);
+          }
+        });
         
         const confirmationMessage = localLang === 'en'
             ? `Your complaint has been successfully registered! Your Ticket ID is ${ticketId}. The Sarpanch has been notified instantly.`

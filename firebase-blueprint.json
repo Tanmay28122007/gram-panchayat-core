@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Complaint": {
+      "title": "Complaint",
+      "description": "A citizen complaint",
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "string"
+        },
+        "citizen_id": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Pending", "In Progress", "Resolved"]
+        },
+        "createdAt": {
+          "type": "object"
+        }
+      },
+      "required": ["event", "citizen_id", "category", "description", "status"]
+     }
+  },
+  "firestore": {
+    "complaints/{complaintId}": {
+      "schema": {
+        "$ref": "#/entities/Complaint"
+      },
+      "description": "Stores complaints lodged by citizens"
+    }
+  }
+}

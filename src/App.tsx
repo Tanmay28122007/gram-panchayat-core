@@ -40,15 +40,46 @@ import { LanguageProvider, useLanguage } from "./LanguageContext";
 // Wrap shared state so we don't lose it on navigation
 function RouterApp() {
   const { t, lang, setLang } = useLanguage();
-  const [issues, setIssues] = useState<Issue[]>(() => {
-    const stored = localStorage.getItem("app_issues");
-    return stored ? JSON.parse(stored) : mockIssues;
-  });
+  const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [ledger, setLedger] = useState(mockLedger);
   const [isSarpanchAuthenticated, setIsSarpanchAuthenticated] = useState(false);
   const [citizenUser, setCitizenUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const isCitizenAuthenticated = !!citizenUser;
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+    import('./lib/firebase').then(async ({ db }) => {
+      const { collection, onSnapshot, query, orderBy } = await import('firebase/firestore');
+      const q = query(collection(db, "complaints"), orderBy("createdAt", "desc"));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedIssues = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: data.category + " Issue",
+            category: data.category?.toLowerCase() || 'other',
+            description: data.description,
+            location: 'Reported via Firebase',
+            reporter: data.citizen_id || 'Citizen',
+            reporterId: data.citizen_id,
+            upvotes: 0,
+            status: data.status === 'Resolved' ? 'resolved' : data.status === 'In Progress' ? 'yellow' : 'green',
+            reportedAt: data.createdAt || new Date().toISOString(),
+            escalated: false,
+          } as Issue;
+        });
+        
+        // merge with mock issues for demo purpose
+        setIssues([...fetchedIssues, ...mockIssues]);
+      }, (error) => {
+        console.error("Error fetching global complaints:", error);
+      });
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 

@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /complaints/{document=**} {
+      // Allow read and write for the prototype app, as it doesn't use Firebase Auth.
+      allow read, write: if true;
+    }
+  }
+}
