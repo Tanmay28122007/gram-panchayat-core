@@ -65,10 +65,14 @@ export function FloatingChat({
             }
             import('../lib/firebase').then(async ({ submitComplaintToDatabase }) => {
               try {
+                const reporterName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : "Citizen User";
                 await submitComplaintToDatabase(
                   user?.id || "unknown", 
                   extractedCategory,
-                  extractedDescription
+                  extractedDescription,
+                  "Vadnagar Taluka",
+                  [],
+                  reporterName
                 );
               } catch (error) {
                 console.error("Failed to submit complaint:", error);
@@ -242,10 +246,14 @@ export function FloatingChat({
         // Triger actual database write!
         import('../lib/firebase').then(async ({ submitComplaintToDatabase }) => {
           try {
+            const reporterName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : "Citizen User";
             await submitComplaintToDatabase(
               user?.id || "unknown", 
               extractedCategory, 
-              `${extractedDescription} (Location: ${extractedLocation})`
+              `${extractedDescription} (Location: ${extractedLocation})`,
+              extractedLocation,
+              [],
+              reporterName
             );
           } catch (error) {
             console.error("Failed to submit complaint:", error);

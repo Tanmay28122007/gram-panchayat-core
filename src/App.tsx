@@ -269,9 +269,16 @@ function RouterApp() {
 
   const handleReportIssue = async (category: IssueCategory, description: string, locationStr: string, attachments?: Attachment[], coordinates?: {lat: number, lng: number}) => {
     const { submitComplaintToDatabase } = await import('./lib/firebase');
-    // Save to Firestore
+    const reporterName = citizenUser ? `${citizenUser.firstName} ${citizenUser.lastName}` : "Anonymous Citizen";
     try {
-      await submitComplaintToDatabase(citizenUser?.id || "unknown", category, description || "Automatically added from Citizen Portal.", locationStr, attachments || []);
+      await submitComplaintToDatabase(
+        citizenUser?.id || "unknown", 
+        category, 
+        description || "Automatically added from Citizen Portal.", 
+        locationStr, 
+        attachments || [],
+        reporterName
+      );
     } catch (e) {
       console.error(e);
     }

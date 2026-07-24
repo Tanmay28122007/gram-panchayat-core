@@ -9,7 +9,7 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(defa
  * 1. The Database Push (Citizen Side)
  * Submits the structured complaint to the global complaints cloud database.
  */
-export async function submitComplaintToDatabase(citizenId: string, category: string, description: string, locationStr: string = "Pending Verification", attachments: any[] = []) {
+export async function submitComplaintToDatabase(citizenId: string, category: string, description: string, locationStr: string = "Pending Verification", attachments: any[] = [], reporterName?: string) {
   try {
     const counterRef = doc(db, "counters", "ticketCounter");
     const ticketId = await runTransaction(db, async (transaction) => {
@@ -28,6 +28,7 @@ export async function submitComplaintToDatabase(citizenId: string, category: str
       ticketId,
       event: "LODGE_COMPLAINT",
       citizen_id: citizenId || "unknown",
+      reporter: reporterName || "Citizen",
       category,
       description,
       attachments,
