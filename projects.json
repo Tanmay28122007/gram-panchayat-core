@@ -1,0 +1,11 @@
+[
+  {
+    "id": "proj-1",
+    "name": "Primary School Solar Panels",
+    "estimatedCost": 250000,
+    "category": "Solar Energy",
+    "status": "Completed",
+    "createdAt": "2026-04-25T10:59:28.030Z",
+    "completedAt": "2026-07-19T10:59:28.031Z"
+  }
+]

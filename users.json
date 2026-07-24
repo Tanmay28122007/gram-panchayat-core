@@ -1,0 +1,18 @@
+[
+  {
+    "id": "USR-ADMIN",
+    "firstName": "Admin",
+    "lastName": "Panchayat",
+    "phoneNumber": "1234567890",
+    "email": "admin@villageos.gov.in",
+    "password": "$2b$10$x..Y.DBvq2SC8jKFdgq35.Gfz2IfQQoaowZ01tHIHg0.p4M1mymXe"
+  },
+  {
+    "id": "USR-1784890825335",
+    "firstName": "4ef",
+    "lastName": "oerwoi",
+    "phoneNumber": "134884844",
+    "email": "worei@fiehtr.com",
+    "password": "$2b$10$fuSeIL2XHf9ANZ3c0Zkdju2jqT7NWMArHLaOxyd18poLzRsHtHD0y"
+  }
+]
