@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Loader2 } from 'lucide-react';
+import { MessageSquare, X, Send, Loader2, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
 import { useLanguage } from '../LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import { IssueCategory } from '../types';
 
 interface Message {
   id: string;
@@ -19,8 +20,10 @@ interface ChatHistoryItem {
 
 export function FloatingChat({ 
   user,
+  onReportIssue
 }: { 
   user: any;
+  onReportIssue?: (category: IssueCategory, description: string, locationStr: string) => void;
 }) {
   const { lang: globalLang } = useLanguage();
   const navigate = useNavigate();
@@ -342,11 +345,12 @@ export function FloatingChat({
                         <button
                           onClick={() => {
                             setIsOpen(false);
-                            navigate('/citizen-login');
+                            navigate('/citizen-register');
                           }}
-                          className="px-4 py-2 bg-[#FF9933] text-white rounded-full text-xs font-semibold shadow-sm hover:bg-[#E67A00] transition-colors"
+                          className="px-4 py-2 bg-[#FF9933] text-white rounded-full text-xs font-semibold shadow-sm hover:bg-[#E67A00] transition-colors flex items-center gap-1.5"
                         >
-                          Log In / Sign Up
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Create Account / Log In
                         </button>
                       </div>
                     )}

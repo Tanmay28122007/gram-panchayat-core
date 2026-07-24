@@ -553,6 +553,7 @@ function RouterApp() {
       </Routes>
       <FloatingChat 
         user={citizenUser}
+        onReportIssue={handleReportIssue}
       />
     </BrowserRouter>
     </>
