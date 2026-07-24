@@ -603,13 +603,29 @@ async function startServer() {
       .trim();
     const textLower = userText.toLowerCase();
 
-    // Check language preference from message or history
-    const isHindi = rawMessage.includes('Switch language to Hindi') ||
-                    /hindi|हिंदी|हिन्दी|हिंदी में/.test(textLower) ||
-                    /[\u0900-\u097F]/.test(rawMessage) ||
-                    (history.some((h: any) => h.parts?.some((p: any) => /[\u0900-\u097F]/.test(p.text || ''))));
+    // English switch or translation request detection
+    const isExplicitEnglishSwitch = 
+      rawMessage.includes('[SYSTEM: Switch language to English]') ||
+      /^\s*(english|inglis|अंग्रेजी|અંગ્રેજી)\s*$/i.test(userText) ||
+      /(change|switch|translate|speak|talk|convert|use|set|mode|reply|respond).*(to|in|into)?.*(english|inglis)/i.test(userText) ||
+      /(in|to|into)\s*(english|inglis)/i.test(userText) ||
+      /speak\s*english|talk\s*english|use\s*english/i.test(userText);
 
-    const isGujarati = !isHindi && (
+    if (isExplicitEnglishSwitch) {
+      return 'Language successfully switched to English. How may I assist you with Gram Panchayat services, government schemes, or grievance registration today?';
+    }
+
+    const wantsEnglish = textLower.includes('english') || textLower.includes('inglis');
+
+    // Check language preference from message or history
+    const isHindi = !wantsEnglish && (
+      rawMessage.includes('Switch language to Hindi') ||
+      /hindi|हिंदी|हिन्दी|हिंदी में/.test(textLower) ||
+      /[\u0900-\u097F]/.test(rawMessage) ||
+      (history.some((h: any) => h.parts?.some((p: any) => /[\u0900-\u097F]/.test(p.text || ''))))
+    );
+
+    const isGujarati = !wantsEnglish && !isHindi && (
       rawMessage.includes('Switch language to Gujarati') || 
       /gujarati|ગુજરાતી|ગુજરાતીમાં/.test(textLower) ||
       /[\u0A80-\u0AFF]/.test(rawMessage) ||
@@ -622,9 +638,6 @@ async function startServer() {
     }
     if (rawMessage.includes('[SYSTEM: Switch language to Gujarati]') || /^\s*(speak in gujarati|switch to gujarati|gujarati|ગુજરાતી|ગુજરાતીમાં વાત કરો)\s*$/i.test(userText)) {
       return 'ભાષા સફળતાપૂર્વક ગુજરાતીમાં બદલાઈ ગઈ છે. હું તમને ગ્રામ પંચાયતની સેવાઓ અથવા ફરિયાદોમાં કેવી રીતે મદદ કરી શકું?';
-    }
-    if (rawMessage.includes('[SYSTEM: Switch language to English]') || /^\s*(speak in english|switch to english|english)\s*$/i.test(userText)) {
-      return 'Language successfully switched to English. How may I assist you with Gram Panchayat services or grievance registration today?';
     }
 
     const isAnonymous = rawMessage.includes('[USER_STATUS: ANONYMOUS]');
