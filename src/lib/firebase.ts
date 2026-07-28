@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc,
-  runTransaction, onSnapshot, query, orderBy, setDoc, getDocs, where 
+  runTransaction, onSnapshot, setDoc, getDocs, where, query 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-config.json';
 import axios from 'axios';
@@ -10,7 +10,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
 
 /**
- * 1. COMPLAINTS SYNC (Global sync across all laptops/devices)
+ * 1. COMPLAINTS SYNC (Global real-time sync across all laptops/devices)
  */
 export async function submitComplaintToDatabase(
   citizenId: string, 
@@ -93,13 +93,18 @@ export async function updateComplaintStatus(id: string, updateData: any) {
 
 export function subscribeToComplaints(callback: (complaints: any[]) => void) {
   try {
-    const q = query(collection(db, "complaints"), orderBy("createdAt", "desc"));
-    return onSnapshot(q, (snapshot) => {
+    const colRef = collection(db, "complaints");
+    return onSnapshot(colRef, (snapshot) => {
       if (snapshot.docs && snapshot.docs.length > 0) {
         const complaints = snapshot.docs.map((document) => ({
           id: document.id,
           ...document.data()
         }));
+        complaints.sort((a: any, b: any) => {
+          const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+          const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+          return tB - tA;
+        });
         callback(complaints);
       }
     }, (err) => {
@@ -124,6 +129,7 @@ export async function submitProjectToDatabase(project: any) {
       ...project,
       updatedAt: serverTimestamp()
     });
+    console.log("Project successfully synced to Cloud Firestore.");
   } catch (e) {
     console.warn("Firestore project sync notice:", e);
   }
@@ -156,13 +162,14 @@ export async function deleteProjectFromDatabase(id: string) {
 
 export function subscribeToProjects(callback: (projects: any[]) => void) {
   try {
-    const q = query(collection(db, "projects"), orderBy("createdAt", "desc"));
-    return onSnapshot(q, (snapshot) => {
+    const colRef = collection(db, "projects");
+    return onSnapshot(colRef, (snapshot) => {
       if (snapshot.docs && snapshot.docs.length > 0) {
         const projects = snapshot.docs.map((document) => ({
           id: document.id,
           ...document.data()
         }));
+        projects.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         callback(projects);
       }
     }, (err) => {
@@ -187,6 +194,7 @@ export async function submitExpenseToDatabase(expense: any) {
       ...expense,
       updatedAt: serverTimestamp()
     });
+    console.log("Expense successfully synced to Cloud Firestore.");
   } catch (e) {
     console.warn("Firestore expense sync notice:", e);
   }
@@ -205,13 +213,14 @@ export async function deleteExpenseFromDatabase(id: string) {
 
 export function subscribeToLedger(callback: (ledger: any[]) => void) {
   try {
-    const q = query(collection(db, "ledger"), orderBy("date", "desc"));
-    return onSnapshot(q, (snapshot) => {
+    const colRef = collection(db, "ledger");
+    return onSnapshot(colRef, (snapshot) => {
       if (snapshot.docs && snapshot.docs.length > 0) {
         const ledger = snapshot.docs.map((document) => ({
           id: document.id,
           ...document.data()
         }));
+        ledger.sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
         callback(ledger);
       }
     }, (err) => {
