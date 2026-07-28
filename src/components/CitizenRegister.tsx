@@ -121,21 +121,6 @@ export function CitizenRegister({ onRegister }: { onRegister: (user: any) => voi
             </button>
           </div>
 
-          {isLogin && (
-            <div 
-              onClick={() => setFormData({ ...formData, identifier: 'admin@villageos.gov.in', password: '123456789' })}
-              className="bg-[#F4F1EA]/60 hover:bg-[#F4F1EA] border border-[#E6E1D3] rounded-2xl p-4 text-xs text-[#5A5A40] transition-all duration-200 mb-6 text-center cursor-pointer hover:shadow-sm"
-              title="Click to autofill"
-            >
-              <p className="font-bold mb-1 flex items-center justify-center gap-1">
-                <span>💡</span> Demo Admin Account
-              </p>
-              <p>Email: <span className="font-mono text-[#2C2C1E] font-semibold">admin@villageos.gov.in</span></p>
-              <p>Password: <span className="font-mono text-[#2C2C1E] font-semibold">123456789</span></p>
-              <p className="mt-2 text-[10px] text-[#8B8B7A] underline">Click here to automatically fill credentials</p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <AnimatePresence mode="popLayout">
               {!isLogin && (
