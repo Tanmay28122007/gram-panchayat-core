@@ -1,13 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { 
-  getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc,
+  initializeFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc,
   runTransaction, onSnapshot, setDoc, getDocs, where, query 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-config.json';
 import axios from 'axios';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+const dbId = firebaseConfig.firestoreDatabaseId || 'ai-studio-214eb997-2c50-4b10-bddc-be950fd9e556';
+
+export const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true
+}, dbId);
 
 /**
  * 1. COMPLAINTS SYNC (Global real-time sync across all laptops/devices)
