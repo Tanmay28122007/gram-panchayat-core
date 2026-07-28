@@ -132,11 +132,32 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     window.addEventListener('storage', handleStorageUpdate);
     window.addEventListener('app_projects_updated', handleStorageUpdate);
     window.addEventListener('app_ledger_updated', handleStorageUpdate);
+
+    let unsubProj: any;
+    let unsubLedger: any;
+
+    import('../lib/firebase').then(({ subscribeToProjects, subscribeToLedger }) => {
+      unsubProj = subscribeToProjects((cloudProjects) => {
+        if (cloudProjects && cloudProjects.length > 0) {
+          setProjects(cloudProjects);
+          localStorage.setItem('app_projects', JSON.stringify(cloudProjects));
+        }
+      });
+      unsubLedger = subscribeToLedger((cloudLedger) => {
+        if (cloudLedger && cloudLedger.length > 0) {
+          setExpenses(cloudLedger);
+          localStorage.setItem('app_ledger', JSON.stringify(cloudLedger));
+        }
+      });
+    });
+
     const interval = setInterval(loadData, 5000);
     return () => {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('app_projects_updated', handleStorageUpdate);
       window.removeEventListener('app_ledger_updated', handleStorageUpdate);
+      if (typeof unsubProj === 'function') unsubProj();
+      if (typeof unsubLedger === 'function') unsubLedger();
       clearInterval(interval);
     };
   }, []);
@@ -177,6 +198,10 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     window.dispatchEvent(new Event('app_projects_updated'));
     window.dispatchEvent(new Event('storage'));
 
+    import('../lib/firebase').then(({ submitProjectToDatabase }) => {
+      submitProjectToDatabase(newProject).catch(console.error);
+    });
+
     try {
       await fetch('/api/projects', {
         method: 'POST',
@@ -201,6 +226,10 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     window.dispatchEvent(new Event('app_projects_updated'));
     window.dispatchEvent(new Event('storage'));
     
+    import('../lib/firebase').then(({ updateProjectInDatabase }) => {
+      updateProjectInDatabase(id, { status: newStatus, completedAt }).catch(console.error);
+    });
+
     try {
       await fetch(`/api/projects/${id}`, {
         method: 'PUT',
@@ -219,6 +248,11 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
       localStorage.setItem('app_projects', JSON.stringify(updatedProjects));
       window.dispatchEvent(new Event('app_projects_updated'));
       window.dispatchEvent(new Event('storage'));
+
+      import('../lib/firebase').then(({ deleteProjectFromDatabase }) => {
+        deleteProjectFromDatabase(id).catch(console.error);
+      });
+
       try {
         await fetch(`/api/projects/${id}`, { method: 'DELETE' });
       } catch(err) {

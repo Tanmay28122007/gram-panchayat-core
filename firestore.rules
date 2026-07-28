@@ -2,26 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /complaints/{document=**} {
-      // Allow public read access to active complaints
-      allow read: if true;
-      
-      // Enforce payload validation when submitting new complaints
-      allow create: if request.resource.data.keys().hasAll(['category', 'description'])
-                    && request.resource.data.description is string
-                    && request.resource.data.description.size() <= 2000;
-                    
-      // Restrict status/upvote updates to specific allowed fields only
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'upvotes', 'escalated', 'escalatedTo', 'comments', 'resolvedAt', 'proofImageUrl']);
-      
-      // Block unauthenticated mass deletion of public complaints
-      allow delete: if false;
+      allow read, write: if true;
     }
-    
+    match /projects/{document=**} {
+      allow read, write: if true;
+    }
+    match /ledger/{document=**} {
+      allow read, write: if true;
+    }
+    match /settings/{document=**} {
+      allow read, write: if true;
+    }
     match /counters/{document=**} {
-      allow read: if true;
-      allow create, update: if request.resource.data.keys().hasAll(['count']) && request.resource.data.count is number;
-      allow delete: if false;
+      allow read, write: if true;
     }
   }
 }
+
 

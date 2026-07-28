@@ -101,10 +101,31 @@ export function FinanceLedger() {
     const handleStorageUpdate = () => syncFromStorage();
     window.addEventListener('storage', handleStorageUpdate);
     window.addEventListener('app_ledger_updated', handleStorageUpdate);
+
+    let unsubLedger: any;
+    let unsubBudget: any;
+
+    import('../lib/firebase').then(({ subscribeToLedger, subscribeToBudget }) => {
+      unsubLedger = subscribeToLedger((cloudLedger) => {
+        if (cloudLedger && cloudLedger.length > 0) {
+          setExpenses(cloudLedger);
+          localStorage.setItem('app_ledger', JSON.stringify(cloudLedger));
+        }
+      });
+      unsubBudget = subscribeToBudget((cloudFund) => {
+        if (cloudFund) {
+          setTotalFund(cloudFund);
+          localStorage.setItem('app_village_budget', cloudFund.toString());
+        }
+      });
+    });
+
     const interval = setInterval(loadData, 5000);
     return () => {
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('app_ledger_updated', handleStorageUpdate);
+      if (typeof unsubLedger === 'function') unsubLedger();
+      if (typeof unsubBudget === 'function') unsubBudget();
       clearInterval(interval);
     };
   }, []);
@@ -134,6 +155,10 @@ export function FinanceLedger() {
     window.dispatchEvent(new Event('app_ledger_updated'));
     window.dispatchEvent(new Event('storage'));
 
+    import('../lib/firebase').then(({ submitExpenseToDatabase, submitProjectToDatabase }) => {
+      submitExpenseToDatabase(expense).catch(console.error);
+    });
+
     // Automatically check if this expense links to a project in app_projects
     const savedProjects = localStorage.getItem('app_projects');
     try {
@@ -152,9 +177,15 @@ export function FinanceLedger() {
           ...(isFinalPayment ? { completedAt: new Date().toISOString() } : {})
         };
         projectsList.unshift(newProj);
+        import('../lib/firebase').then(({ submitProjectToDatabase }) => {
+          submitProjectToDatabase(newProj).catch(console.error);
+        });
       } else if (isFinalPayment) {
         projectsList[projIdx].status = 'Completed';
         projectsList[projIdx].completedAt = new Date().toISOString();
+        import('../lib/firebase').then(({ updateProjectInDatabase }) => {
+          updateProjectInDatabase(projectsList[projIdx].id, { status: 'Completed', completedAt: projectsList[projIdx].completedAt }).catch(console.error);
+        });
       }
       
       localStorage.setItem('app_projects', JSON.stringify(projectsList));
@@ -183,6 +214,11 @@ export function FinanceLedger() {
       localStorage.setItem('app_ledger', JSON.stringify(updatedExpenses));
       window.dispatchEvent(new Event('app_ledger_updated'));
       window.dispatchEvent(new Event('storage'));
+
+      import('../lib/firebase').then(({ deleteExpenseFromDatabase }) => {
+        deleteExpenseFromDatabase(id).catch(console.error);
+      });
+
       try {
         await fetch(`/api/ledger/${id}`, { method: 'DELETE' });
       } catch(err) {
@@ -207,6 +243,11 @@ export function FinanceLedger() {
       setTotalFund(newVal);
       localStorage.setItem('app_village_budget', newVal.toString());
       window.dispatchEvent(new Event('storage'));
+
+      import('../lib/firebase').then(({ updateVillageBudgetInDatabase }) => {
+        updateVillageBudgetInDatabase(newVal).catch(console.error);
+      });
+
       try {
         const authHeader = localStorage.getItem('sarpanch_token');
         await fetch('/api/village-budget', {

@@ -377,12 +377,10 @@ function RouterApp() {
       role: 'official' as const
     };
 
-    if (!issueId.startsWith('TKT-')) {
-      const issue = issues.find(i => i.id === issueId);
-      if (issue) {
-        const { updateComplaintStatus } = await import('./lib/firebase');
-        await updateComplaintStatus(issueId, { comments: [...(issue.comments || []), newComment] });
-      }
+    const issue = issues.find(i => i.id === issueId);
+    if (issue) {
+      const { updateComplaintStatus } = await import('./lib/firebase');
+      await updateComplaintStatus(issueId, { comments: [...(issue.comments || []), newComment] });
     }
 
     setIssues(prev => prev.map(i => {
@@ -394,11 +392,8 @@ function RouterApp() {
   };
 
   const handleEscalate = async (id: string, escalatedTo: string) => {
-    // If it's not a mock TKT- id, it's a Firestore doc ID
-    if (!id.startsWith('TKT-')) {
-      const { updateComplaintStatus } = await import('./lib/firebase');
-      await updateComplaintStatus(id, { escalated: true, escalatedTo, status: "Escalated" });
-    }
+    const { updateComplaintStatus } = await import('./lib/firebase');
+    await updateComplaintStatus(id, { escalated: true, escalatedTo, status: "Escalated" });
     setIssues((prev) =>
       prev.map((i) =>
         i.id === id ? { ...i, escalated: true, escalatedTo, status: "red" } : i,
@@ -408,14 +403,12 @@ function RouterApp() {
 
   const handleResolve = async (id: string) => {
     const proofImageUrl = "https://images.unsplash.com/photo-1541888040058-005809633e70?q=80&w=200&auto=format&fit=crop";
-    if (!id.startsWith('TKT-')) {
-      const { updateComplaintStatus } = await import('./lib/firebase');
-      await updateComplaintStatus(id, { 
-        status: "Resolved", 
-        resolvedAt: new Date().toISOString(),
-        proofImageUrl 
-      });
-    }
+    const { updateComplaintStatus } = await import('./lib/firebase');
+    await updateComplaintStatus(id, { 
+      status: "Resolved", 
+      resolvedAt: new Date().toISOString(),
+      proofImageUrl 
+    });
     setIssues((prev) =>
       prev.map((i) =>
         i.id === id
@@ -431,10 +424,8 @@ function RouterApp() {
   };
 
   const handleReview = async (id: string) => {
-    if (!id.startsWith('TKT-')) {
-      const { updateComplaintStatus } = await import('./lib/firebase');
-      await updateComplaintStatus(id, { status: "In Progress" });
-    }
+    const { updateComplaintStatus } = await import('./lib/firebase');
+    await updateComplaintStatus(id, { status: "In Progress" });
     setIssues((prev) =>
       prev.map((i) =>
         i.id === id ? { ...i, status: "yellow" } : i,
