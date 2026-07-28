@@ -40,19 +40,45 @@ const getIcon = (type: string) => {
   }
 };
 
+const FALLBACK_CATEGORIES: SchemeCategory[] = [
+  { id: "agriculture", title_en: "Agriculture, Rural & Environment", title_gu: "કૃષિ, ગ્રામીણ અને પર્યાવરણ", icon_type: "HomeModernIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=agriculture" },
+  { id: "benefits", title_en: "Benefits & Social development", title_gu: "લાભો અને સામાજિક વિકાસ", icon_type: "UserGroupIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=benefits" },
+  { id: "business", title_en: "Business & Self-employed", title_gu: "વ્યવસાય અને સ્વ-રોજગાર", icon_type: "BriefcaseIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=business" },
+  { id: "citizenship", title_en: "Citizenship, Visa & Passports", title_gu: "નાગરિકત્વ, વિઝા અને પાસપોર્ટ", icon_type: "IdentificationIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=citizenship" },
+  { id: "defence", title_en: "Defence & Foreign affairs", title_gu: "સંરક્ષણ અને વિદેશી બાબતો", icon_type: "ShieldCheckIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=defence" },
+  { id: "transport", title_en: "Driving & Transport", title_gu: "ડ્રાઇવિંગ અને ટ્રાન્સપોર્ટ", icon_type: "TruckIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=transport" },
+  { id: "education", title_en: "Education & Learning", title_gu: "શિક્ષણ અને શિક્ષણ", icon_type: "AcademicCapIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=education" },
+  { id: "governance", title_en: "Governance & Planning", title_gu: "શાસન અને આયોજન", icon_type: "BuildingLibraryIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=governance" },
+  { id: "health", title_en: "Health & Wellness", title_gu: "આરોગ્ય અને સુખાકારી", icon_type: "HeartIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=health" },
+  { id: "housing", title_en: "Housing & Local services", title_gu: "આવાસ અને સ્થાનિક સેવાઓ", icon_type: "HomeIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=housing" },
+  { id: "infrastructure", title_en: "Infrastructure & Industries", title_gu: "ઇન્ફ્રાસ્ટ્રક્ચર અને ઉદ્યોગો", icon_type: "WrenchScrewdriverIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=infrastructure" },
+  { id: "jobs", title_en: "Jobs", title_gu: "નોકરીઓ", icon_type: "MagnifyingGlassIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=jobs" },
+  { id: "justice", title_en: "Justice, Law & Grievances", title_gu: "ન્યાય, કાયદો અને ફરિયાદો", icon_type: "ScaleIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=justice" },
+  { id: "money", title_en: "Money & Taxes", title_gu: "નાણાં અને કરવેરા", icon_type: "BanknotesIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=money" },
+  { id: "science", title_en: "Science, IT & Communication", title_gu: "વિજ્ઞાન, આઇટી અને સંચાર", icon_type: "ComputerDesktopIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=science" },
+  { id: "tourism", title_en: "Travel & Tourism", title_gu: "મુસાફરી અને પ્રવાસન", icon_type: "SunIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=tourism" },
+  { id: "welfare", title_en: "Welfare of Families", title_gu: "પરિવાારોનું કલ્યાણ", icon_type: "UserMinusIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=welfare" },
+  { id: "youth", title_en: "Youth sports & Culture", title_gu: "યુવા રમતગમત અને સંસ્કૃતિ", icon_type: "TrophyIcon", target_url: "https://www.india.gov.in/my-government/schemes/search?schemeCategory=youth" }
+];
+
 export function SchemeCategories() {
   const { t, lang } = useLanguage();
-  const [categories, setCategories] = useState<SchemeCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<SchemeCategory[]>(FALLBACK_CATEGORIES);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await safeFetch('/api/v1/schemes/categories');
-        const data = await response.json();
-        
-        if (data.categories && data.categories.length > 0) {
-          setCategories(data.categories);
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (data.categories && data.categories.length > 0) {
+              setCategories(data.categories);
+              return;
+            }
+          }
         }
       } catch (err) {
         console.error('Network Error: Using offline fallback structure.', err);

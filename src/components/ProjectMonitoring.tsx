@@ -18,9 +18,37 @@ interface ProjectMonitoringProps {
   role: 'sarpanch' | 'citizen';
 }
 
+const DEFAULT_PROJECTS: DevelopmentProject[] = [
+  {
+    id: 'proj-1',
+    name: 'Primary School Solar Panels',
+    estimatedCost: 250000,
+    category: 'Solar Energy',
+    status: 'Completed',
+    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'proj-2',
+    name: 'Village Main Road Asphalt Paving',
+    estimatedCost: 850000,
+    category: 'Road & Infrastructure',
+    status: 'Ongoing',
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'proj-3',
+    name: 'Clean Drinking Water Pipeline Extension',
+    estimatedCost: 400000,
+    category: 'Water Supply',
+    status: 'Ongoing',
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
 export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const { lang } = useLanguage();
-  const [projects, setProjects] = useState<DevelopmentProject[]>([]);
+  const [projects, setProjects] = useState<DevelopmentProject[]>(DEFAULT_PROJECTS);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -34,14 +62,20 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
     try {
       const res = await fetch('/api/projects');
       if (res.ok) {
-        const data = await res.json();
-        setProjects(data.projects);
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.projects && data.projects.length > 0) setProjects(data.projects);
+        }
       }
       
       const ledgerRes = await fetch('/api/ledger');
       if (ledgerRes.ok) {
-        const data = await ledgerRes.json();
-        setExpenses(data.ledger);
+        const contentType = ledgerRes.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await ledgerRes.json();
+          if (data.ledger) setExpenses(data.ledger);
+        }
       }
     } catch(err) {
       console.error(err);

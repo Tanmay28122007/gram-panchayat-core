@@ -16,18 +16,29 @@ interface WeatherData {
   rainfall24h: number;
 }
 
+const DEFAULT_WEATHER: WeatherData[] = [
+  { city: "Ahmedabad / Vadnagar", tempMax: 32, tempMin: 23, humidity: 78, rainfall24h: 12 },
+  { city: "Bhuj", tempMax: 35, tempMin: 24, humidity: 60, rainfall24h: 0 },
+  { city: "Rajkot", tempMax: 33, tempMin: 22, humidity: 72, rainfall24h: 5 }
+];
+
 export function SeasonPanel() {
   const { t, lang } = useLanguage();
-  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [weatherData, setWeatherData] = useState<WeatherData[]>(DEFAULT_WEATHER);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchWeather = async () => {
       try {
         const res = await safeFetch('/api/v1/weather');
-        const data = await res.json();
-        if (data.weather) {
-          setWeatherData(data.weather);
+        if (res.ok) {
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await res.json();
+            if (data.weather && data.weather.length > 0) {
+              setWeatherData(data.weather);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to fetch weather", err);

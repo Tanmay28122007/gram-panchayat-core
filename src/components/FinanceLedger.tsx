@@ -14,12 +14,19 @@ interface ExpenseEntry {
   isFinalPayment?: boolean;
 }
 
+const DEFAULT_EXPENSES: ExpenseEntry[] = [
+  { id: 'exp-1', reason: 'Solar Lighting Installation at Primary School', amount: 250000, category: 'Solar Energy', date: '2026-07-20T10:00:00.000Z', isFinalPayment: true },
+  { id: 'exp-2', reason: 'MGNREGA Wages for Pond Cleaning', amount: 120000, category: 'Drainage', date: '2026-07-22T14:30:00.000Z', isFinalPayment: false },
+  { id: 'exp-3', reason: 'Drain Pipeline Maintenance & Sanitization', amount: 45000, category: 'Sanitation', date: '2026-07-25T09:15:00.000Z', isFinalPayment: true },
+  { id: 'exp-4', reason: 'Main Road Asphalt Repair Phase 1', amount: 350000, category: 'Road', date: '2026-07-27T11:00:00.000Z', isFinalPayment: false }
+];
+
 export function FinanceLedger() {
   const { t, lang } = useLanguage();
   
   // State
   const [totalFund, setTotalFund] = useState<number>(5000000);
-  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>(DEFAULT_EXPENSES);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Fund Update Modal State
@@ -37,14 +44,20 @@ export function FinanceLedger() {
     try {
       const budgetRes = await fetch('/api/village-budget');
       if (budgetRes.ok) {
-        const data = await budgetRes.json();
-        setTotalFund(data.totalFund);
+        const contentType = budgetRes.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await budgetRes.json();
+          if (data.totalFund) setTotalFund(data.totalFund);
+        }
       }
 
       const ledgerRes = await fetch('/api/ledger');
       if (ledgerRes.ok) {
-        const data = await ledgerRes.json();
-        setExpenses(data.ledger);
+        const contentType = ledgerRes.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await ledgerRes.json();
+          if (data.ledger && data.ledger.length > 0) setExpenses(data.ledger);
+        }
       }
     } catch(err) {
       console.error(err);
