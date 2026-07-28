@@ -1,5 +1,13 @@
 [
   {
+    "id": "59854fe8-13d9-4d50-af0b-4aba4d48cf87-proj",
+    "name": "school",
+    "estimatedCost": 756589362545,
+    "category": "Road",
+    "status": "Ongoing",
+    "createdAt": "28/7/2026"
+  },
+  {
     "id": "proj-1",
     "name": "Primary School Solar Panels",
     "estimatedCost": 250000,

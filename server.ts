@@ -36,6 +36,7 @@ function saveProjects(data: any[]) {
 }
 
 const BUDGET_FILE = path.join(process.cwd(), 'villageBudget.json');
+const COMPLAINTS_FILE = path.join(process.cwd(), 'complaints.json');
 
 function loadVillageBudget(): { totalFund: number } {
   if (fs.existsSync(BUDGET_FILE)) {
@@ -46,6 +47,46 @@ function loadVillageBudget(): { totalFund: number } {
 
 function saveVillageBudget(data: { totalFund: number }) {
   fs.writeFileSync(BUDGET_FILE, JSON.stringify(data, null, 2));
+}
+
+function loadComplaints(): any[] {
+  if (fs.existsSync(COMPLAINTS_FILE)) {
+    return JSON.parse(fs.readFileSync(COMPLAINTS_FILE, 'utf-8'));
+  }
+  return [];
+}
+
+function saveComplaints(data: any[]) {
+  fs.writeFileSync(COMPLAINTS_FILE, JSON.stringify(data, null, 2));
+}
+
+if (!fs.existsSync(COMPLAINTS_FILE)) {
+  saveComplaints([
+    {
+      id: 'TKT-000001',
+      ticketId: 'TKT-000001',
+      title: 'Complaint Regarding Water Supply Disruption',
+      category: 'water',
+      description: 'The main hand pump near the primary school is not working for the last 3 days.',
+      location: 'Sundhiya, Vadnagar',
+      reporter: 'Ramesh Kumar',
+      citizen_id: 'USR-001',
+      status: 'Pending',
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'TKT-000002',
+      ticketId: 'TKT-000002',
+      title: 'Complaint Regarding Streetlight Failure',
+      category: 'electricity',
+      description: 'Streetlight pole #12 is not turning on.',
+      location: 'Sipor, Vadnagar',
+      reporter: 'Sita Devi',
+      citizen_id: 'USR-002',
+      status: 'In Progress',
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ]);
 }
 
 // Initial mock data if empty
@@ -111,14 +152,18 @@ let schemesCache: {
   lastFetch: number;
 } = {
   data: [
+    { title: "PM-KISAN Samman Nidhi", description: "Direct income support of ₹6,000 per year to small and marginal farmer families.", url: "https://pmkisan.gov.in/" },
+    { title: "Pradhan Mantri Awas Yojana (Gramin)", description: "Financial assistance for construction of pucca house with basic amenities for rural families.", url: "https://pmayg.nic.in/" },
     { title: "Pradhan Mantri Jan Dhan Yojana", description: "A National Mission for Financial Inclusion to ensure access to financial services.", url: "https://pmjdy.gov.in/" },
-    { title: "Atal Pension Yojana", description: "Providing social security to workers in unorganised sector.", url: "https://pfrda.org.in/" },
-    { title: "Swachh Bharat Mission", description: "Universal sanitation coverage scheme.", url: "https://swachhbharatmission.gov.in" }
-  ], // Fallback data if everything fails
+    { title: "Atal Pension Yojana", description: "Providing social security & guaranteed minimum monthly pension to workers in unorganised sector.", url: "https://pfrda.org.in/" },
+    { title: "Swachh Bharat Mission (Gramin)", description: "Universal sanitation coverage scheme accelerating rural cleanliness and hygiene.", url: "https://swachhbharatmission.gov.in" },
+    { title: "Pradhan Mantri Ujjwala Yojana", description: "Free LPG connections for women from Below Poverty Line (BPL) households.", url: "https://www.pmuy.gov.in/" }
+  ],
   lastFetch: 0
 };
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const FALLBACK_RETRY_INTERVAL = 10 * 60 * 1000; // 10 minutes backoff on fetch failure
 
 async function fetchSchemes() {
   const now = Date.now();
@@ -139,8 +184,8 @@ async function fetchSchemes() {
     const $ = cheerio.load(data);
     const schemes: Scheme[] = [];
 
+    // Selector Strategy 1: Classic view rows
     $('.view-content .views-row').each((i, el) => {
-      // Typically on india.gov.in
       const titleEl = $(el).find('h3 a, .views-field-title a');
       let title = titleEl.text().trim();
       
@@ -148,7 +193,6 @@ async function fetchSchemes() {
       let description = pWrapper.text().trim();
       
       const url = titleEl.attr('href') || $(el).find('a').attr('href') || '#';
-      
       const fullUrl = url.startsWith('/') ? `https://www.india.gov.in${url}` : url;
 
       if (!description) {
@@ -164,14 +208,42 @@ async function fetchSchemes() {
       }
     });
 
+    // Selector Strategy 2: Modern scheme card / service links if strategy 1 yielded no results
+    if (schemes.length === 0) {
+      $('a').each((_, el) => {
+        let title = $(el).text().trim().replace(/\s+/g, ' ');
+        if (title.startsWith('Loading...')) title = title.replace('Loading...', '').trim();
+        
+        const href = $(el).attr('href') || '';
+        const isGovLink = href.includes('gov.in') || href.includes('nic.in') || href.includes('/schemes');
+        const isExcluded = href.includes('facebook') || href.includes('x.com') || href.includes('calendar') || 
+                           href.includes('about-us') || href.includes('disclaimer') || href.includes('help') || 
+                           title.includes('Brochure') || title.includes('Content Sources') || title.includes('CPGRAMS') ||
+                           title.startsWith('Ministry Of') || title.startsWith('Ministry of');
+
+        if (title.length > 8 && isGovLink && !isExcluded) {
+          schemes.push({
+            title,
+            description: "Official Government Scheme & Citizen Services Portal. Click to view details.",
+            url: href.startsWith('/') ? `https://www.india.gov.in${href}` : href
+          });
+        }
+      });
+    }
+
     if (schemes.length > 0) {
       schemesCache = {
         data: schemes.slice(0, 6),
         lastFetch: now
       };
+      console.log(`Successfully fetched ${schemesCache.data.length} live government schemes.`);
+    } else {
+      throw new Error("No schemes matching selectors found on live page");
     }
-  } catch (error) {
-    console.error('Failed to fetch schemes, using fallback cache');
+  } catch (error: any) {
+    console.warn(`Unable to fetch live schemes (${error?.message || error}). Using cached fallback schemes.`);
+    // Set timestamp to retry interval so fallback is served cleanly without repeating fetch attempts on every request
+    schemesCache.lastFetch = now - (CACHE_DURATION - FALLBACK_RETRY_INTERVAL);
   }
 
   return schemesCache.data;
@@ -377,6 +449,38 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  app.get('/api/complaints', (req, res) => {
+    res.json({ complaints: loadComplaints() });
+  });
+
+  app.post('/api/complaints', (req, res) => {
+    const complaints = loadComplaints();
+    const count = complaints.length + 1;
+    const ticketId = req.body.ticketId || `TKT-${count.toString().padStart(6, '0')}`;
+    const newComplaint = {
+      id: ticketId,
+      ticketId,
+      ...req.body,
+      status: req.body.status || 'Pending',
+      createdAt: req.body.createdAt || new Date().toISOString()
+    };
+    complaints.unshift(newComplaint);
+    saveComplaints(complaints);
+    res.json({ success: true, complaint: newComplaint });
+  });
+
+  app.patch('/api/complaints/:id', (req, res) => {
+    const complaints = loadComplaints();
+    const idx = complaints.findIndex((c: any) => c.id === req.params.id || c.ticketId === req.params.id);
+    if (idx !== -1) {
+      complaints[idx] = { ...complaints[idx], ...req.body };
+      saveComplaints(complaints);
+      res.json({ success: true, complaint: complaints[idx] });
+    } else {
+      res.status(404).json({ error: 'Complaint not found' });
+    }
+  });
 
   app.get('/api/projects', (req, res) => {
     res.json({ projects: loadProjects() });
@@ -603,22 +707,40 @@ async function startServer() {
       .trim();
     const textLower = userText.toLowerCase();
 
-    // English switch or translation request detection
+    // Explicit Language switch or translation request detection
     const isExplicitEnglishSwitch = 
       rawMessage.includes('[SYSTEM: Switch language to English]') ||
+      rawMessage.includes('[SYSTEM: Selected Language = English]') ||
       /^\s*(english|inglis|अंग्रेजी|અંગ્રેજી)\s*$/i.test(userText) ||
       /(change|switch|translate|speak|talk|convert|use|set|mode|reply|respond).*(to|in|into)?.*(english|inglis)/i.test(userText) ||
       /(in|to|into)\s*(english|inglis)/i.test(userText) ||
       /speak\s*english|talk\s*english|use\s*english/i.test(userText);
 
+    const isExplicitHindiSwitch = 
+      rawMessage.includes('[SYSTEM: Switch language to Hindi]') ||
+      rawMessage.includes('[SYSTEM: Selected Language = Hindi]') ||
+      /^\s*(speak in hindi|switch to hindi|hindi|हिंदी|हिन्दी|हिंदी में बोलो|हिंदी में|हिंदी भाषा)\s*$/i.test(userText);
+
+    const isExplicitGujaratiSwitch = 
+      rawMessage.includes('[SYSTEM: Switch language to Gujarati]') ||
+      rawMessage.includes('[SYSTEM: Selected Language = Gujarati]') ||
+      /^\s*(speak in gujarati|switch to gujarati|gujarati|ગુજરાતી|ગુજરાતીમાં|ગુજરાતી ભાષા)\s*$/i.test(userText);
+
     if (isExplicitEnglishSwitch) {
-      return 'Language successfully switched to English. How may I assist you with Gram Panchayat services, government schemes, or grievance registration today?';
+      return 'Language set to English. How can I assist you with Gram Panchayat services, government schemes, or grievance registration today?';
+    }
+    if (isExplicitHindiSwitch) {
+      return 'भाषा सफलतापूर्वक हिंदी में सेट कर दी गई है। आज मैं ग्राम पंचायत सेवाओं, योजनाओं या शिकायत दर्ज करने में आपकी क्या सहायता कर सकता हूँ?';
+    }
+    if (isExplicitGujaratiSwitch) {
+      return 'ભાષા સફળતાપૂર્વક ગુજરાતીમાં સેટ થઈ ગઈ છે. આજે હું તમને ગ્રામ પંચાયતની સેવાઓ, યોજનાઓ અથવા ફરિયાદ નોંધણીમાં કેવી રીતે મદદ કરી શકું?';
     }
 
     const wantsEnglish = textLower.includes('english') || textLower.includes('inglis');
 
     // Check language preference from message or history
     const isHindi = !wantsEnglish && (
+      rawMessage.includes('Selected Language = Hindi') ||
       rawMessage.includes('Switch language to Hindi') ||
       /hindi|हिंदी|हिन्दी|हिंदी में/.test(textLower) ||
       /[\u0900-\u097F]/.test(rawMessage) ||
@@ -626,19 +748,12 @@ async function startServer() {
     );
 
     const isGujarati = !wantsEnglish && !isHindi && (
+      rawMessage.includes('Selected Language = Gujarati') ||
       rawMessage.includes('Switch language to Gujarati') || 
       /gujarati|ગુજરાતી|ગુજરાતીમાં/.test(textLower) ||
       /[\u0A80-\u0AFF]/.test(rawMessage) ||
       (history.some((h: any) => h.parts?.some((p: any) => /[\u0A80-\u0AFF]/.test(p.text || ''))))
     );
-
-    // Language switch direct requests
-    if (rawMessage.includes('[SYSTEM: Switch language to Hindi]') || /^\s*(speak in hindi|switch to hindi|hindi|हिंदी|हिंदी में बात करो|हिंदी में बोलो)\s*$/i.test(userText)) {
-      return 'भाषा सफलतापूर्वक हिंदी में बदल दी गई है। मैं ग्राम पंचायत सेवाओं या शिकायतों में आपकी क्या सहायता कर सकता हूँ?';
-    }
-    if (rawMessage.includes('[SYSTEM: Switch language to Gujarati]') || /^\s*(speak in gujarati|switch to gujarati|gujarati|ગુજરાતી|ગુજરાતીમાં વાત કરો)\s*$/i.test(userText)) {
-      return 'ભાષા સફળતાપૂર્વક ગુજરાતીમાં બદલાઈ ગઈ છે. હું તમને ગ્રામ પંચાયતની સેવાઓ અથવા ફરિયાદોમાં કેવી રીતે મદદ કરી શકું?';
-    }
 
     const isAnonymous = rawMessage.includes('[USER_STATUS: ANONYMOUS]');
     
@@ -677,12 +792,12 @@ async function startServer() {
       const flag = `[FLAG: ESCALATE_TO_SARPANCH_PORTAL | CATEGORY: ${category} | LOCATION: ${location} | DESCRIPTION: ${desc}]`;
 
       if (isHindi) {
-        return `${flag}\n\nआपकी शिकायत ("${desc}") सफलतापूर्वक दर्ज कर ली गई है और ${location} पंचायत सरपंच डैशबोर्ड पर भेज दी गई है। हमारी टीम जल्द ही कार्रवाई करेगी।`;
+        return `${flag}\n\nआपकी शिकायत ("${desc}") सफलतापूर्वक दर्ज कर ली गई है और ${location} पंचायत सरपंच डैशबोर्ड पर भेज दी गई है। आप शिकायत पोर्टल पर इसकी स्थिति देख और ट्रैक कर सकते हैं। [TRIGGER_COMPLAINT_REDIRECT]`;
       }
       if (isGujarati) {
-        return `${flag}\n\nતમારી ફરિયાદ ("${desc}") સફળતાપૂર્વક નોંધાઈ ગઈ છે અને ${location} પંચાયત સરપંચ ડેશબોર્ડ પર મોકલવામાં આવી છે. અમારી ટીમ ટૂંક સમયમાં કાર્યવાહી કરશે.`;
+        return `${flag}\n\nતમારી ફરિયાદ ("${desc}") સફળતાપૂર્વક નોંધાઈ ગઈ છે અને ${location} પંચાયત સરપંચ ડેશબોર્ડ પર મોકલવામાં આવી છે. તમે ફરિયાદ પોર્ટલ પર તેની સ્થિતિ જોઈ અને ટ્રેક કરી શકો છો. [TRIGGER_COMPLAINT_REDIRECT]`;
       }
-      return `${flag}\n\nYour complaint regarding "${desc}" in ${location} has been successfully logged and escalated directly to the Sarpanch Dashboard for immediate attention.`;
+      return `${flag}\n\nYour complaint regarding "${desc}" in ${location} has been successfully logged and escalated directly to the Sarpanch Dashboard. You can view and track it on the Complaint Portal. [TRIGGER_COMPLAINT_REDIRECT]`;
     }
 
     if (/scheme|yojana|pm-kisan|farmer|kisan|subsidy|welfare|યોજના|ખેડૂત|योजना|किसान|सब्सिडी/.test(textLower)) {
@@ -776,8 +891,9 @@ Core Capabilities:
 Operational Workflow & State Machine:
 Step 1: Greeting & Language Sync. Start the conversation with a polite greeting. If you receive a hidden instruction like "[SYSTEM: Switch language to English]", "[SYSTEM: Switch language to Hindi]", or "[SYSTEM: Switch language to Gujarati]", or if the user asks in chat to switch/translate language, immediately shift all subsequent responses to that language and acknowledge the change naturally without breaking the conversation flow.
 Step 2: Intent Classification. If the user wants to file a complaint (e.g., "road is broken", "no water"), proceed to Step 3. For general inquiries, answer politely in the active language.
-Step 3: Automated Authentication Verification. When a user expresses intent to file a complaint, check the current system variable "[USER_STATUS]". Scenario A: "[USER_STATUS: ANONYMOUS]" (Not Logged In) -> Immediately halt the complaint flow. Inform the user politely in the active language that authentication is required to track updates: "To register a verified complaint, you need to be logged in. Please use the button below to log in or create an account." (or Hindi/Gujarati equivalent). Output the command token exactly "[TRIGGER_AUTH_REDIRECT]". Scenario B: "[USER_STATUS: LOGGED_IN]" -> Do not ask the user for verification. Skip directly to Step 4.
-Step 4: Complaint Registration & Escalation. Proceed with collecting the specific issue details (e.g., Road damage, Streetlight failure) and map them to the logged-in user profile. Identify the correct issue category from exactly one of these enum values: water, sanitation, roads, electricity, certificates, or other. Automatically tag the complaint with the active location provided by the top bar system context. CRUCIAL: Output the final log with metadata exactly like this: "[FLAG: ESCALATE_TO_SARPANCH_PORTAL | CATEGORY: <Category> | LOCATION: <Current Location> | DESCRIPTION: <Description>]" (replacing <Category> with the parsed enum string, <Current Location> with the system location context provided, and <Description> with a clean, professional summary of the issue). This ensures the engineering backend routes the complaint straight to the dashboard of that specific village's Sarpanch. Do NOT output phrases like "Generated by Assistant" in the description.
+Step 3: Automated Authentication Verification & Complaint Handling. When a user expresses intent to file a complaint (e.g. broken road, water leak, streetlight issue):
+Scenario A: "[USER_STATUS: ANONYMOUS]" (Not Logged In) -> Immediately halt complaint submission. Inform the user politely in the active language that account creation or login is required to register and track complaints. Output the token: "[TRIGGER_AUTH_REDIRECT]".
+Scenario B: "[USER_STATUS: LOGGED_IN]" -> Proceed with collecting complaint details. Identify the issue category (water, sanitation, roads, electricity, certificates, or other). Output the escalation tag: "[FLAG: ESCALATE_TO_SARPANCH_PORTAL | CATEGORY: <Category> | LOCATION: <Current Location> | DESCRIPTION: <Description>]". Confirm to the user in their active language that their complaint is registered, and append the token: "[TRIGGER_COMPLAINT_REDIRECT]".
 
 Style Guidelines:
 - Tone: Helpful, grounded, polite.
