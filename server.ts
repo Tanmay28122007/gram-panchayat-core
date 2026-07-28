@@ -7,11 +7,17 @@ import * as cheerio from 'cheerio';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 const USERS_FILE = path.join(process.cwd(), 'users.json');
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const LEDGER_FILE = path.join(process.cwd(), 'ledger.json');
 const PROJECTS_FILE = path.join(process.cwd(), 'projects.json');
+
+function sanitizeString(val: any): string {
+  if (typeof val !== 'string') return '';
+  return val.replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
+}
 
 function loadLedger(): any[] {
   if (fs.existsSync(LEDGER_FILE)) {

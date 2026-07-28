@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local Database & Sensitive Runtime State
+users.json
+complaints.json
+ledger.json
+projects.json
+villageBudget.json
+
