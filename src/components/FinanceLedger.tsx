@@ -25,8 +25,22 @@ export function FinanceLedger() {
   const { t, lang } = useLanguage();
   
   // State
-  const [totalFund, setTotalFund] = useState<number>(5000000);
-  const [expenses, setExpenses] = useState<ExpenseEntry[]>(DEFAULT_EXPENSES);
+  const [totalFund, setTotalFund] = useState<number>(() => {
+    const saved = localStorage.getItem('app_village_budget');
+    return saved ? Number(saved) : 5000000;
+  });
+  
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>(() => {
+    const saved = localStorage.getItem('app_ledger');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_EXPENSES;
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   
   // Fund Update Modal State
@@ -40,6 +54,18 @@ export function FinanceLedger() {
   const [newCategory, setNewCategory] = useState('Road');
   const [isFinalPayment, setIsFinalPayment] = useState(false);
 
+  const syncFromStorage = () => {
+    const savedLedger = localStorage.getItem('app_ledger');
+    if (savedLedger) {
+      try {
+        const parsed = JSON.parse(savedLedger);
+        if (Array.isArray(parsed)) setExpenses(parsed);
+      } catch (e) {}
+    }
+    const savedBudget = localStorage.getItem('app_village_budget');
+    if (savedBudget) setTotalFund(Number(savedBudget));
+  };
+
   const loadData = async () => {
     try {
       const budgetRes = await fetch('/api/village-budget');
@@ -47,7 +73,10 @@ export function FinanceLedger() {
         const contentType = budgetRes.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await budgetRes.json();
-          if (data.totalFund) setTotalFund(data.totalFund);
+          if (data.totalFund) {
+            setTotalFund(data.totalFund);
+            localStorage.setItem('app_village_budget', data.totalFund.toString());
+          }
         }
       }
 
@@ -56,7 +85,10 @@ export function FinanceLedger() {
         const contentType = ledgerRes.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await ledgerRes.json();
-          if (data.ledger && data.ledger.length > 0) setExpenses(data.ledger);
+          if (data.ledger && data.ledger.length > 0) {
+            setExpenses(data.ledger);
+            localStorage.setItem('app_ledger', JSON.stringify(data.ledger));
+          }
         }
       }
     } catch(err) {
@@ -66,8 +98,15 @@ export function FinanceLedger() {
 
   useEffect(() => {
     loadData();
+    const handleStorageUpdate = () => syncFromStorage();
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('app_ledger_updated', handleStorageUpdate);
     const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('app_ledger_updated', handleStorageUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   // Derived State
@@ -89,7 +128,38 @@ export function FinanceLedger() {
       isFinalPayment: isFinalPayment
     };
     
-    setExpenses([expense, ...expenses]);
+    const updatedExpenses = [expense, ...expenses];
+    setExpenses(updatedExpenses);
+    localStorage.setItem('app_ledger', JSON.stringify(updatedExpenses));
+    window.dispatchEvent(new Event('app_ledger_updated'));
+    window.dispatchEvent(new Event('storage'));
+
+    // Automatically check if this expense links to a project in app_projects
+    const savedProjects = localStorage.getItem('app_projects');
+    try {
+      let projectsList = savedProjects ? JSON.parse(savedProjects) : [];
+      const projectName = newReason.trim().toLowerCase();
+      const projIdx = projectsList.findIndex((p: any) => p.name.trim().toLowerCase() === projectName);
+      
+      if (projIdx === -1) {
+        const newProj = {
+          id: expense.id + '-proj',
+          name: newReason.trim(),
+          estimatedCost: Number(newAmount),
+          category: newCategory === 'Road' ? 'Road & Infrastructure' : newCategory,
+          status: isFinalPayment ? 'Completed' : 'Ongoing',
+          createdAt: new Date().toISOString(),
+          ...(isFinalPayment ? { completedAt: new Date().toISOString() } : {})
+        };
+        projectsList.unshift(newProj);
+      } else if (isFinalPayment) {
+        projectsList[projIdx].status = 'Completed';
+        projectsList[projIdx].completedAt = new Date().toISOString();
+      }
+      
+      localStorage.setItem('app_projects', JSON.stringify(projectsList));
+      window.dispatchEvent(new Event('app_projects_updated'));
+    } catch(e) {}
 
     try {
       await fetch('/api/ledger', {
@@ -108,7 +178,11 @@ export function FinanceLedger() {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      setExpenses(expenses.filter(e => e.id !== id));
+      const updatedExpenses = expenses.filter(e => e.id !== id);
+      setExpenses(updatedExpenses);
+      localStorage.setItem('app_ledger', JSON.stringify(updatedExpenses));
+      window.dispatchEvent(new Event('app_ledger_updated'));
+      window.dispatchEvent(new Event('storage'));
       try {
         await fetch(`/api/ledger/${id}`, { method: 'DELETE' });
       } catch(err) {
@@ -131,6 +205,8 @@ export function FinanceLedger() {
     const newVal = Number(fundInputValue);
     if (!isNaN(newVal)) {
       setTotalFund(newVal);
+      localStorage.setItem('app_village_budget', newVal.toString());
+      window.dispatchEvent(new Event('storage'));
       try {
         const authHeader = localStorage.getItem('sarpanch_token');
         await fetch('/api/village-budget', {
@@ -141,7 +217,7 @@ export function FinanceLedger() {
           },
           body: JSON.stringify({ totalFund: newVal })
         });
-      } catch (err) {
+      } catch(err) {
         console.error(err);
       }
     }

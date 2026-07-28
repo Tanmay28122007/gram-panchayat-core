@@ -48,8 +48,29 @@ const DEFAULT_PROJECTS: DevelopmentProject[] = [
 
 export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const { lang } = useLanguage();
-  const [projects, setProjects] = useState<DevelopmentProject[]>(DEFAULT_PROJECTS);
-  const [expenses, setExpenses] = useState<any[]>([]);
+  
+  const [projects, setProjects] = useState<DevelopmentProject[]>(() => {
+    const saved = localStorage.getItem('app_projects');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_PROJECTS;
+  });
+
+  const [expenses, setExpenses] = useState<any[]>(() => {
+    const saved = localStorage.getItem('app_ledger');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   
@@ -58,6 +79,23 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
   const [newCost, setNewCost] = useState('');
   const [newCategory, setNewCategory] = useState('Road & Infrastructure');
 
+  const syncFromStorage = () => {
+    const savedProjects = localStorage.getItem('app_projects');
+    if (savedProjects) {
+      try {
+        const parsed = JSON.parse(savedProjects);
+        if (Array.isArray(parsed)) setProjects(parsed);
+      } catch (e) {}
+    }
+    const savedLedger = localStorage.getItem('app_ledger');
+    if (savedLedger) {
+      try {
+        const parsed = JSON.parse(savedLedger);
+        if (Array.isArray(parsed)) setExpenses(parsed);
+      } catch (e) {}
+    }
+  };
+
   const loadData = async () => {
     try {
       const res = await fetch('/api/projects');
@@ -65,7 +103,10 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
-          if (data.projects && data.projects.length > 0) setProjects(data.projects);
+          if (data.projects && data.projects.length > 0) {
+            setProjects(data.projects);
+            localStorage.setItem('app_projects', JSON.stringify(data.projects));
+          }
         }
       }
       
@@ -74,7 +115,10 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
         const contentType = ledgerRes.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await ledgerRes.json();
-          if (data.ledger) setExpenses(data.ledger);
+          if (data.ledger) {
+            setExpenses(data.ledger);
+            localStorage.setItem('app_ledger', JSON.stringify(data.ledger));
+          }
         }
       }
     } catch(err) {
@@ -84,9 +128,17 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
 
   useEffect(() => {
     loadData();
-    // Poll every 5 seconds to show "real-time visibility" across both Citizen and Sarpanch portals
+    const handleStorageUpdate = () => syncFromStorage();
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('app_projects_updated', handleStorageUpdate);
+    window.addEventListener('app_ledger_updated', handleStorageUpdate);
     const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('app_projects_updated', handleStorageUpdate);
+      window.removeEventListener('app_ledger_updated', handleStorageUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   const categories = ['All', 'Road & Infrastructure', 'Water Supply', 'Solar Energy', 'Drainage', 'Education', 'Health'];
@@ -119,8 +171,12 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
       createdAt: new Date().toISOString()
     };
 
-    setProjects([newProject, ...projects]);
-    
+    const updatedProjects = [newProject, ...projects];
+    setProjects(updatedProjects);
+    localStorage.setItem('app_projects', JSON.stringify(updatedProjects));
+    window.dispatchEvent(new Event('app_projects_updated'));
+    window.dispatchEvent(new Event('storage'));
+
     try {
       await fetch('/api/projects', {
         method: 'POST',
@@ -137,9 +193,13 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
 
   const handleStatusChange = async (id: string, newStatus: DevelopmentProject['status']) => {
     const completedAt = newStatus === 'Completed' ? new Date().toISOString() : undefined;
-    setProjects(projects.map(p => 
+    const updatedProjects = projects.map(p => 
       p.id === id ? { ...p, status: newStatus, completedAt: completedAt || p.completedAt } : p
-    ));
+    );
+    setProjects(updatedProjects);
+    localStorage.setItem('app_projects', JSON.stringify(updatedProjects));
+    window.dispatchEvent(new Event('app_projects_updated'));
+    window.dispatchEvent(new Event('storage'));
     
     try {
       await fetch(`/api/projects/${id}`, {
@@ -154,7 +214,11 @@ export function ProjectMonitoring({ role }: ProjectMonitoringProps) {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
-      setProjects(projects.filter(p => p.id !== id));
+      const updatedProjects = projects.filter(p => p.id !== id);
+      setProjects(updatedProjects);
+      localStorage.setItem('app_projects', JSON.stringify(updatedProjects));
+      window.dispatchEvent(new Event('app_projects_updated'));
+      window.dispatchEvent(new Event('storage'));
       try {
         await fetch(`/api/projects/${id}`, { method: 'DELETE' });
       } catch(err) {
