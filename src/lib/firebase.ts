@@ -7,7 +7,7 @@ import firebaseConfig from '../../firebase-config.json';
 import axios from 'axios';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)');
+export const db = getFirestore(app);
 
 /**
  * 1. COMPLAINTS SYNC (Global real-time sync across all laptops/devices)
